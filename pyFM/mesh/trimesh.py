@@ -8,6 +8,7 @@ from . import geometry as geom
 from . import laplacian
 import scipy.linalg
 import scipy.sparse as sparse
+import trimesh
 
 import potpourri3d as pp3d
 import robust_laplacian
@@ -70,6 +71,7 @@ class TriMesh:
         # Differnetiate between [path] or [vertex] or [vertex, faces]
         if len(args) == 1 and type(args[0]) is str:
             self._load_mesh(args[0])
+            self.path = args[0]
         elif len(args) == 1:
             self.vertlist = args[0]
             self.facelist = None
@@ -872,6 +874,25 @@ class TriMesh:
         """
         self._edges = geom.edges_from_faces(self.facelist)
 
+    def barycentric_to_points(self, b, triangle_id):
+        """
+        calculates euclidean coordinates from given barycentric coordinates and triangles
+        :param b: barycentric coordinates (n, 3)
+        :param triangle_id: list of triangle ID's corresponding to the barycentric coordinates (n)
+
+        Returns
+        ---------
+        p : (n, 3) float
+          Point coordinates in euclidean space
+        """
+
+        if self._triangle_vertices is None:
+            self._init_triangles()
+
+        p = trimesh.triangles.barycentric_to_points(self._triangle_vertices[triangle_id], b)
+
+        return p
+
     def _reset_vertex_attributes(self):
         """
         Resets attributes which depend on the vertex positions
@@ -972,3 +993,10 @@ class TriMesh:
         self._solver_geod = None
         self._solver_heat = None
         self._solver_lap = None
+
+        self._triangle_vertices = None
+
+    def _init_triangles(self):
+
+        print("Initializing list of triangle vertices...")
+        self._triangle_vertices = self.vertlist[self.facelist]

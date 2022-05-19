@@ -7,7 +7,7 @@ import scipy.sparse as sparse
 from .nn_utils import knn_query
 
 
-def project_pc_to_triangles(vert_emb, faces, points_emb, precompute_dmin=True, batch_size=None, n_jobs=1, verbose=False):
+def project_pc_to_triangles(vert_emb, faces, points_emb, precompute_dmin=True, batch_size=None, n_jobs=1, return_vec=False, verbose=False):
     """
     Project a pointcloud on a set of triangles in p-dimension. Projection is defined as
     barycentric coordinates on one of the triangle.
@@ -23,6 +23,8 @@ def project_pc_to_triangles(vert_emb, faces, points_emb, precompute_dmin=True, b
                       Faster but heavier in memory.
     batch_size      : If precompute_dmin is False, projects batches of points on the surface
     n_jobs          : number of parallel process for nearest neighbor precomputation
+    return_vec      : If true, return a (n2, 3) vector with barycentric coordinates instead
+                      of a sparse matrix.
 
 
     Output
@@ -98,6 +100,9 @@ def project_pc_to_triangles(vert_emb, faces, points_emb, precompute_dmin=True, b
 
                 face_match[vertind] = faceind
                 bary_coord[vertind] = bary
+
+    if return_vec:
+        return bary_coord, face_match
 
     return barycentric_to_precise(faces, face_match, bary_coord, n_vertices=n_vertices)
 
@@ -930,3 +935,28 @@ def pointTriangleDistance(TRI, P, return_bary=False):
 
     else:
         return dist,PP0,np.array([1-s-t, s, t])
+
+
+def project_point_to_rep_to_rep(mesh1, mesh2, point_cloud):
+    """
+    Computes the projection of points, e.g. a scan to a representative mesh. 
+    Then carry over the points to a second representative mesh of a different shape and convert back to euclidean coordinates
+
+    Parameters
+    -------------------------------
+    mesh1, mesh2: <class: trimesh.TriMesh> representative meshes of 2 shapes, where the vertices and edges of 
+                  corresponding parts have the same indices
+    point_cloud : (n, 3) coordinates of the points
+
+    Output
+    -------------------------------
+    p           : (n, 3) projected coordinates of the points
+    """
+
+    # project points to first mesh
+    b, tid = project_pc_to_triangles(mesh1.vertlist, mesh1.facelist, point_cloud, return_vec=True)
+
+    # carry barycentric coord over to second mesh and calculate euclideaan coord from there
+    p = mesh2.barycentric_to_points(b, tid)
+
+    return p
