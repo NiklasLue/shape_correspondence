@@ -950,9 +950,11 @@ class TriMesh:
             self.vertlist, self.facelist = file_utils.read_off(meshpath)
         elif os.path.splitext(meshpath)[1] == '.obj':
             self.vertlist, self.facelist = file_utils.read_obj(meshpath)
+        elif os.path.splitext(meshpath)[1] == '.ply':
+            self.vertlist, self.facelist = file_utils.read_ply(meshpath)
 
         else:
-            raise ValueError('Provide file in .off or .obj format')
+            raise ValueError('Provide file in .off, .obj or .ply format')
 
         self.path = meshpath
         self.meshname = os.path.splitext(os.path.basename(meshpath))[0]
