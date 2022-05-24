@@ -76,3 +76,78 @@ def coverage(p2p, A):
     coverage = vert_area[np.unique(p2p)].sum() / vert_area.sum()
 
     return coverage
+
+class EvaluateModel:
+
+    def __init__(self, model, data_class, refine=False, preprocess_params={}, fit_params={}, verbose=False):
+        """
+        Initialize Class
+
+        Parameters
+        -----------------------
+        model       : Class for model, should contain functions preprocess, fit and 
+                        if refine==True, then also icp_refine and zoomout_refine.
+        data_class  : Initialized data class, should contain __get_item__ accessing all possible combinations where ground thruth maps are available,
+                        __len__, get_p2p and load_trimesh function.
+        """
+
+        self.model = model
+        self.data_class = data_class
+        self.refine = refine
+        self.preprocess_params = preprocess_params
+        self.fit_params = fit_params
+        self.verbose = verbose
+
+        self.acc_base = []
+        if verbose:
+            self.acc_icp = []
+            self.acc_zo = []
+
+    def eval(self):
+        for idx in range(len(self.data_class)):
+            mesh1, mesh2 = self.data_class.load_trimesh[idx]
+            model = self.model(mesh1, mesh2)
+
+            model.preprocess(**self.preprocess_params, verbose=self.verbose)
+            model.fit(**self.fit_params, verbose=self.verbose)
+            p2p_21 = model.get_p2p()
+
+            if self.refine:
+                model.icp_refine('classic', verbose=self.verbose)
+                p2p_21_icp = model.get_p2p()
+                model.zoomout_refine('classic', verbose=self.verbose)
+                p2p_21_zo = model.get_p2p()
+
+            A_geod = mesh1.get_geodesic(verbose=self.verbose)
+            gt_p2p = self.data_class.get_p2p(idx)
+
+            self.acc_base.append(accuracy(p2p_21, gt_p2p, A_geod, sqrt_area=mesh1.sqrtarea))
+
+            if self.refine:
+                self.acc_icp.append(accuracy(p2p_21_icp, gt_p2p, A_geod, sqrt_area=np.sqrt(mesh1.area)))
+                self.acc_zo.append(accuracy(p2p_21_zo, gt_p2p, A_geod, sqrt_area=np.sqrt(mesh1.area)))
+
+        if self.refine:
+            print(f'Mean accuracy results\n'
+                f'\tBasic FM : {1e3*np.array(self.acc_base).mean():.2f}\n'
+                f'\tICP refined : {1e3*np.array(self.acc_icp).mean():.2f}\n'
+                f'\tZoomOut refined : {1e3*np.array(self.acc_zo).mean():.2f}\n')
+
+            print(f'Standard deviation of accuracy results\n'
+                f'\tBasic FM : {1e3*np.array(self.acc_base).std():.2f}\n'
+                f'\tICP refined : {1e3*np.array(self.acc_icp).std():.2f}\n'
+                f'\tZoomOut refined : {1e3*np.array(self.acc_zo).std():.2f}\n')
+        else:
+            print(f'Mean accuracy results\n'
+                f'\tBasic FM : {1e3*np.array(self.acc_base).mean():.2f}\n')
+
+            print(f'Standard deviation of accuracy results\n'
+                f'\tBasic FM : {1e3*np.array(self.acc_base).std():.2f}\n')
+
+        with open("../data/eval_results.txt", "w") as f:
+            f.write(", ".join(self.acc_base))
+
+            if self.refine:
+                f.write(", ".join(self.acc_icp))
+                f.write(", ".join(self.acc_zo))
+                
