@@ -87,7 +87,7 @@ class EvaluateModel:
         -----------------------
         model       : Class for model, should contain functions preprocess, fit and 
                         if refine==True, then also icp_refine and zoomout_refine.
-        data_class  : Initialized data class, should contain __get_item__ accessing all possible combinations where ground thruth maps are available,
+        data_class  : Initialized data class, should contain __getitem__ accessing all possible combinations where ground thruth maps are available,
                         __len__, get_p2p and load_trimesh function.
         """
 
@@ -106,6 +106,9 @@ class EvaluateModel:
         self.data = data_class(data_path, name="")
 
     def eval(self):
+        """
+        Evaluate given method on given dataset. For now only supports canonical accuracy implemented in pyFM.
+        """
         for idx in range(len(self.data)):
             # TODO: consider precomputing evecs, etc. for each mesh to avoid multiple computations for the same mesh
             mesh1, mesh2 = self.data.load_trimesh(idx)
