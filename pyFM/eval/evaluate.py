@@ -79,7 +79,7 @@ def coverage(p2p, A):
 
 class EvaluateModel:
 
-    def __init__(self, model, data_class, refine=False, preprocess_params={}, fit_params={}, verbose=False):
+    def __init__(self, model, data_class, data_path, refine=False, preprocess_params={}, fit_params={}, verbose=False):
         """
         Initialize Class
 
@@ -92,7 +92,6 @@ class EvaluateModel:
         """
 
         self.model = model
-        self.data_class = data_class
         self.refine = refine
         self.preprocess_params = preprocess_params
         self.fit_params = fit_params
@@ -103,9 +102,13 @@ class EvaluateModel:
             self.acc_icp = []
             self.acc_zo = []
 
+        # TODO: remove name=""
+        self.data = data_class(data_path, name="")
+
     def eval(self):
-        for idx in range(len(self.data_class)):
-            mesh1, mesh2 = self.data_class.load_trimesh[idx]
+        for idx in range(len(self.data)):
+            # TODO: consider precomputing evecs, etc. for each mesh to avoid multiple computations for the same mesh
+            mesh1, mesh2 = self.data.load_trimesh(idx)
             model = self.model(mesh1, mesh2)
 
             model.preprocess(**self.preprocess_params, verbose=self.verbose)
@@ -119,7 +122,7 @@ class EvaluateModel:
                 p2p_21_zo = model.get_p2p()
 
             A_geod = mesh1.get_geodesic(verbose=self.verbose)
-            gt_p2p = self.data_class.get_p2p(idx)
+            gt_p2p = self.data.get_p2p(idx)
 
             self.acc_base.append(accuracy(p2p_21, gt_p2p, A_geod, sqrt_area=mesh1.sqrtarea))
 
@@ -144,10 +147,12 @@ class EvaluateModel:
             print(f'Standard deviation of accuracy results\n'
                 f'\tBasic FM : {1e3*np.array(self.acc_base).std():.2f}\n')
 
-        with open("../data/eval_results.txt", "w") as f:
-            f.write(", ".join(self.acc_base))
+        with open("data/eval_results.txt", "w+") as f:
+            self.str_acc_base = [str(x) for x in self.acc_base]
+            f.write(", ".join(self.str_acc_base))
 
             if self.refine:
-                f.write(", ".join(self.acc_icp))
-                f.write(", ".join(self.acc_zo))
-                
+                self.str_acc_icp = [str(x) for x in self.acc_icp]
+                self.str_acc_zo = [str(x) for x in self.acc_zo]
+                f.write(", ".join(self.str_acc_icp))
+                f.write(", ".join(self.str_acc_zo))

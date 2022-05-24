@@ -128,6 +128,9 @@ class ShrecPartialDataset(Dataset):
 
         # Load the actual files
         for shape_name in self.used_shapes:
+            # On Mac, iCloud creates .DS_Store files in a directory
+            if ".DS_Store" in shape_name:
+                continue
             print("loading mesh " + str(shape_name))
 
             verts, faces = pp3d.read_mesh(str(mesh_dirpath / f"{shape_name}.off"))
@@ -193,15 +196,19 @@ class ShrecPartialDataset(Dataset):
     
         """
         idx1, idx2 = self.combinations[idx]
-        ids = [idx1, idx2]
-        meshes = [tm.TriMesh(self.verts_list[idx], self.faces_list[idx]) for idx in ids]
+        ids = [idx1-1, idx2-1]
+        meshes = [tm.TriMesh(self.verts_list[i], self.faces_list[i]) for i in ids]
 
         return meshes
 
     def get_p2p(self, idx):
         idx1, idx2 = self.combinations[idx]
-        self.corres_dict[(idx1, idx2)]
-        print(self.corres_dict.keys())
+        p2p_map = self.corres_dict[(idx1, idx2)]
+
+        if p2p_map.size(0) == self.verts_list[idx1-1].size(0) + self.verts_list[idx2-1].size(0):
+            p2p_map = p2p_map[:self.verts_list[idx2-1].size(0)]
+
+        return p2p_map
 
     def __len__(self):
         return len(self.combinations)
