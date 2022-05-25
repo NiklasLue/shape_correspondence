@@ -75,7 +75,7 @@ class Faust:
 
 class FaustRep:
 
-    def __init__(self, path, name="reg"):
+    def __init__(self, path, name="reg", verbose=True):
         self.path = path # path to FAUST dataset
         self.used_shapes = sorted([x.stem for x in (Path(path) / "training" / "registrations").iterdir() if (name in x.stem and ".ply" in str(x))])
 
@@ -91,7 +91,8 @@ class FaustRep:
             # On Mac, iCloud creates .DS_Store files in a directory
             if ".DS_Store" in shape_name:
                 continue
-            print("loading mesh " + str(shape_name))
+            if verbose:
+                print("loading mesh " + str(shape_name))
 
             verts, faces = pp3d.read_mesh(str(mesh_dirpath / f"{shape_name}.ply"))
 
@@ -114,7 +115,8 @@ class FaustRep:
         # set combinations
         self.combinations = list(self.corres_dict.keys())
 
-        print("Initialization done!")
+        if verbose:
+            print("Initialization done!")
 
     def load_trimesh(self, idx):
         """
@@ -184,7 +186,7 @@ class FaustRep:
 
 
 class ShrecPartialDataset(Dataset):
-    def __init__(self, root_dir, name="cuts", k_eig=128, n_fmap=30, use_cache=True, op_cache_dir=None):
+    def __init__(self, root_dir, name="cuts", k_eig=128, n_fmap=30, use_cache=True, op_cache_dir=None, verbose=True):
 
         self.k_eig = k_eig
         self.n_fmap = n_fmap
@@ -195,9 +197,11 @@ class ShrecPartialDataset(Dataset):
         # check the cache
         if use_cache:
             load_cache = os.path.join(self.cache_dir, f"cache_{name}_train.pt")
-            print("using dataset cache path: " + str(load_cache))
+            if verbose:
+                print("using dataset cache path: " + str(load_cache))
             if os.path.exists(load_cache):
-                print("  --> loading dataset from cache")
+                if verbose:
+                    print("  --> loading dataset from cache")
                 (
                     self.verts_list,
                     self.faces_list,
@@ -214,7 +218,8 @@ class ShrecPartialDataset(Dataset):
                 ) = torch.load(load_cache)
                 self.combinations = list(self.corres_dict.keys())
                 return
-            print("  --> dataset not in cache, repopulating")
+            if verbose:
+                print("  --> dataset not in cache, repopulating")
 
         # Load the meshes & labels
         # define files and order
@@ -241,7 +246,8 @@ class ShrecPartialDataset(Dataset):
             # On Mac, iCloud creates .DS_Store files in a directory
             if ".DS_Store" in shape_name:
                 continue
-            print("loading mesh " + str(shape_name))
+            if verbose:
+                print("loading mesh " + str(shape_name))
 
             verts, faces = pp3d.read_mesh(str(mesh_dirpath / f"{shape_name}.off"))
 
@@ -290,8 +296,8 @@ class ShrecPartialDataset(Dataset):
                 ),
                 load_cache,
             )
-
-        print("Initialization done!")
+        if verbose:
+            print("Initialization done!")
 
     def load_trimesh(self, idx):
         """
