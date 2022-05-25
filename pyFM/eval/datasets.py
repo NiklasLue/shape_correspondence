@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import itertools
 
 import numpy as np
 import potpourri3d as pp3d
@@ -71,6 +72,115 @@ class Faust:
     def get_geodesic_error(self):
 
         pass
+
+class FaustRep:
+
+    def __init__(self, path, name="reg"):
+        self.path = path # path to FAUST dataset
+        self.used_shapes = sorted([x.stem for x in (Path(path) / "training" / "registrations").iterdir() if (name in x.stem and ".ply" in str(x))])
+
+        mesh_dirpath = Path(path) / "training" / "registrations"
+
+        # Get all the files
+        self.verts_list = []
+        self.faces_list = []
+        self.sample_list = []
+
+        # Load the actual files
+        for shape_name in self.used_shapes:
+            # On Mac, iCloud creates .DS_Store files in a directory
+            if ".DS_Store" in shape_name:
+                continue
+            print("loading mesh " + str(shape_name))
+
+            verts, faces = pp3d.read_mesh(str(mesh_dirpath / f"{shape_name}.ply"))
+
+            # to torch
+            verts = torch.tensor(np.ascontiguousarray(verts)).float()
+            faces = torch.tensor(np.ascontiguousarray(faces))
+            self.verts_list.append(verts)
+            self.faces_list.append(faces)
+            # idx0 = farthest_point_sample(verts.t(), ratio=0.9)
+            # dists, idx1 = square_distance(verts.unsqueeze(0), verts[idx0].unsqueeze(0)).sort(dim=-1)
+            # dists, idx1 = dists[:, :, :130].clone(), idx1[:, :, :130].clone()
+            # self.sample_list.append((idx0, idx1, dists))
+
+        all_combs = [i for subset in itertools.combinations(self.used_shapes, 2) for i in (subset, tuple(reversed(subset)))]
+        self.corres_dict = {}
+        for x, y in all_combs:
+            map_ = torch.tensor(range(len(self.verts_list[self.used_shapes.index(y)]))).long()
+            self.corres_dict[(self.used_shapes.index(y), self.used_shapes.index(x))] = map_
+
+        # set combinations
+        self.combinations = list(self.corres_dict.keys())
+
+        print("Initialization done!")
+
+    def load_trimesh(self, idx):
+        """
+        Load TriMesh class for given ID.
+
+        Parameters
+        -------------------------------
+        ids  : list list of ID's of the corresponding Shrec models
+
+        Outputs
+        -------------------------------
+        meshes  : list of two meshes as trimesh.TriMesh class
+        """
+        idx1, idx2 = self.combinations[idx]
+        ids = [idx1-1, idx2-1]
+        meshes = [tm.TriMesh(self.verts_list[i], self.faces_list[i]) for i in ids]
+
+        return meshes
+
+    def get_p2p(self, idx):
+        """
+        Get point to point map for given ID.
+        Parameters
+        -------------------------------
+        idx : ID of combination to get point to point map for
+        
+        Outputs
+        -------------------------------
+        p2p_map : point to point map
+        """
+        idx1, idx2 = self.combinations[idx]
+        p2p_map = self.corres_dict[(idx1, idx2)]
+
+        if p2p_map.size(0) == self.verts_list[idx1-1].size(0) + self.verts_list[idx2-1].size(0):
+            p2p_map = p2p_map[:self.verts_list[idx2-1].size(0)]
+
+        return p2p_map
+
+    def __len__(self):
+        return len(self.combinations)
+
+    def __getitem__(self, idx):
+        idx1, idx2 = self.combinations[idx]
+
+        shape1 = {
+            "xyz": self.verts_list[idx1],
+            "faces": self.faces_list[idx1]
+        }
+
+        shape2 = {
+            "xyz": self.verts_list[idx2],
+            "faces": self.faces_list[idx2]
+        }
+
+        # Compute fmap
+        map21 = self.corres_dict[(idx1, idx2)]
+
+        # TODO: Add calculation of C_gt
+        # evec_1, evec_2, mass2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap], shape2["mass"]
+        # trans_evec2 = evec_2.t() @ torch.diag(mass2)
+
+        # P = torch.zeros(evec_2.size(0), evec_1.size(0))
+        # P[range(evec_2.size(0)), map21.flatten()] = 1
+        # C_gt = trans_evec2 @ P @ evec_1
+
+        return {"shape1": shape1, "shape2": shape2, "map21": map21}
 
 
 class ShrecPartialDataset(Dataset):
@@ -185,7 +295,7 @@ class ShrecPartialDataset(Dataset):
 
     def load_trimesh(self, idx):
         """
-        Load TriMesh class for given ID's.
+        Load TriMesh class for given ID.
 
         Parameters
         -------------------------------
@@ -193,7 +303,7 @@ class ShrecPartialDataset(Dataset):
 
         Outputs
         -------------------------------
-    
+        meshes  : list of two meshes as trimesh.TriMesh class
         """
         idx1, idx2 = self.combinations[idx]
         ids = [idx1-1, idx2-1]
@@ -202,6 +312,16 @@ class ShrecPartialDataset(Dataset):
         return meshes
 
     def get_p2p(self, idx):
+        """
+        Get point to point map for given ID.
+        Parameters
+        -------------------------------
+        idx : ID of combination to get point to point map for
+        
+        Outputs
+        -------------------------------
+        p2p_map : point to point map
+        """
         idx1, idx2 = self.combinations[idx]
         p2p_map = self.corres_dict[(idx1, idx2)]
 
