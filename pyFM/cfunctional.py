@@ -134,14 +134,14 @@ class CoupledFunctionalMapping:
     def fitted(self):
         return self.C1 is not None
 
-    def get_coupledp2p(self, use_adj=False, n_jobs=1):
+    def get_p2p(self, use_adj=False, n_jobs=1):
         
         coupled_p2p = spectral.mesh_FM_to_p2p(self.C1, self.mesh1, self.mesh2,
                                               use_adj=use_adj, n_jobs=n_jobs)
         return coupled_p2p
         
 
-    def get_precise_coupled_map(self, precompute_dmin=True, use_adj=True, batch_size=None, n_jobs=1, verbose=False):
+    def get_precise_map(self, precompute_dmin=True, use_adj=True, batch_size=None, n_jobs=1, verbose=False):
         """
         Returns a precise map from mesh2 to mesh1
 
@@ -177,7 +177,7 @@ class CoupledFunctionalMapping:
 
         return lmks1, lmks2
 
-    def coupled_preprocess(self, n_ev=(50,50), n_descr=100, descr_type='WKS', landmarks=None, subsample_step=1, k_process=None,
+    def preprocess(self, n_ev=(50,50), n_descr=100, descr_type='WKS', landmarks=None, subsample_step=1, k_process=None,
                            verbose=False):
         """
         Saves the information about the Laplacian mesh for opt
@@ -258,7 +258,7 @@ class CoupledFunctionalMapping:
 
         return self
     
-    def coupled_fit(self, mu_cons, mu_LB, optinit='zeros', verbose=False):
+    def fit(self, mu_cons, mu_LB, optinit='zeros', verbose=False):
         """
         Solves the functional map optimization problem :
 
