@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 def accuracy(p2p, gt_p2p, D1_geod, return_all=False, sqrt_area=None):
@@ -105,11 +107,14 @@ class EvaluateModel:
         # TODO: remove name=""
         self.data = data_class(data_path, name="")
 
-    def eval(self):
+    def eval(self, accum_dist=True):
         """
         Evaluate given method on given dataset. For now only supports canonical accuracy implemented in pyFM.
         """
-        for idx in range(len(self.data)):
+        if accum_dist:
+            dist_list = []
+
+        for idx in tqdm(range(len(self.data))):
             # TODO: consider precomputing evecs, etc. for each mesh to avoid multiple computations for the same mesh
             mesh1, mesh2 = self.data.load_trimesh(idx)
             model = self.model(mesh1, mesh2)
@@ -127,11 +132,16 @@ class EvaluateModel:
             A_geod = mesh1.get_geodesic(verbose=self.verbose)
             gt_p2p = self.data.get_p2p(idx)
 
-            self.acc_base.append(accuracy(p2p_21, gt_p2p, A_geod, sqrt_area=mesh1.sqrtarea))
+            if accum_dist:
+                acc, dist = accuracy(p2p_21, gt_p2p, A_geod, sqrt_area=mesh1.sqrtarea, return_all=True)
+                self.acc_base.append(acc)
+                dist_list = np.concatenate((dist_list, dist), axis=None)
+            else:
+                self.acc_base.append(accuracy(p2p_21, gt_p2p, A_geod, sqrt_area=mesh1.sqrtarea))
 
             if self.refine:
-                self.acc_icp.append(accuracy(p2p_21_icp, gt_p2p, A_geod, sqrt_area=np.sqrt(mesh1.area)))
-                self.acc_zo.append(accuracy(p2p_21_zo, gt_p2p, A_geod, sqrt_area=np.sqrt(mesh1.area)))
+                self.acc_icp.append(accuracy(p2p_21_icp, gt_p2p, A_geod, sqrt_area=np.sqrt(mesh1.area), return_all=accum_dist))
+                self.acc_zo.append(accuracy(p2p_21_zo, gt_p2p, A_geod, sqrt_area=np.sqrt(mesh1.area), return_all=accum_dist))
 
         if self.refine:
             print(f'Mean accuracy results\n'
@@ -150,7 +160,26 @@ class EvaluateModel:
             print(f'Standard deviation of accuracy results\n'
                 f'\tBasic FM : {1e3*np.array(self.acc_base).std():.2f}\n')
 
-        with open("data/eval_results.txt", "w+") as f:
+        if accum_dist:
+            X2 = np.sort(dist_list)
+            F2 = np.array(range(len(dist_list)))/float(len(dist_list))
+
+            plt.plot(X2, F2)
+            plt.title('Cumulative geodesic error')
+            plt.xlabel('Geodesic error')
+            plt.ylabel('% Correspondences')
+            # plt.xlim([0.0, 0.4])
+            plt.ylim([0.0, 1.0])
+
+            plt.savefig(f"data/eval/accum_dist_{type(model).__name__}_{type(self.data).__name__}.png", bbox_inches='tight', dpi=200)
+
+            plt.close()
+
+            with open(f"data/eval/distances_{type(model).__name__}_{type(self.data).__name__}.txt", "w+") as f:
+                f.write(", ".join([str(x) for x in dist_list]))
+
+
+        with open(f"data/eval/eval_results_{type(model).__name__}_{type(self.data).__name__}.txt", "w+") as f:
             self.str_acc_base = [str(x) for x in self.acc_base]
             f.write(", ".join(self.str_acc_base))
 
