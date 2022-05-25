@@ -131,7 +131,7 @@ class FaustRep:
         meshes  : list of two meshes as trimesh.TriMesh class
         """
         idx1, idx2 = self.combinations[idx]
-        ids = [idx1-1, idx2-1]
+        ids = [idx1, idx2]
         meshes = [tm.TriMesh(self.verts_list[i], self.faces_list[i]) for i in ids]
 
         return meshes
@@ -150,8 +150,8 @@ class FaustRep:
         idx1, idx2 = self.combinations[idx]
         p2p_map = self.corres_dict[(idx1, idx2)]
 
-        if p2p_map.size(0) == self.verts_list[idx1-1].size(0) + self.verts_list[idx2-1].size(0):
-            p2p_map = p2p_map[:self.verts_list[idx2-1].size(0)]
+        if p2p_map.size(0) == self.verts_list[idx1].size(0) + self.verts_list[idx2].size(0):
+            p2p_map = p2p_map[:self.verts_list[idx2].size(0)]
 
         return p2p_map
 
@@ -312,7 +312,7 @@ class ShrecPartialDataset(Dataset):
         meshes  : list of two meshes as trimesh.TriMesh class
         """
         idx1, idx2 = self.combinations[idx]
-        ids = [idx1-1, idx2-1]
+        ids = [idx1, idx2]
         meshes = [tm.TriMesh(self.verts_list[i], self.faces_list[i]) for i in ids]
 
         return meshes
@@ -331,8 +331,9 @@ class ShrecPartialDataset(Dataset):
         idx1, idx2 = self.combinations[idx]
         p2p_map = self.corres_dict[(idx1, idx2)]
 
-        if p2p_map.size(0) == self.verts_list[idx1-1].size(0) + self.verts_list[idx2-1].size(0):
-            p2p_map = p2p_map[:self.verts_list[idx2-1].size(0)]
+        if p2p_map.size(0) == self.verts_list[idx1].size(0) + self.verts_list[idx2].size(0):
+            p2p_map = p2p_map[:self.verts_list[idx2].size(0)]
+        
 
         return p2p_map
 
