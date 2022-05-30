@@ -81,7 +81,7 @@ def coverage(p2p, A):
 
 class EvaluateModel:
 
-    def __init__(self, model, data_class, data_path, refine=False, preprocess_params={}, fit_params={}, verbose=False):
+    def __init__(self, model, data_class, data_path, refine=False, preprocess_params={}, fit_params={}, data_params={'name': ""}, verbose=False):
         """
         Initialize Class
 
@@ -104,8 +104,7 @@ class EvaluateModel:
             self.acc_icp = []
             self.acc_zo = []
 
-        # TODO: remove name=""
-        self.data = data_class(data_path, name="")
+        self.data = data_class(data_path, **data_params)
 
     def eval(self, accum_dist=True):
         """
