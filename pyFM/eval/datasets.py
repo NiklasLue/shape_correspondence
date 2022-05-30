@@ -13,6 +13,73 @@ from .utils import farthest_point_sample, square_distance
 from ..spectral import projection_utils as pju
 from ..mesh import trimesh as tm
 
+class Dataset:
+
+    def __init__(self, path):
+        #TODO: create check if its a pathlib.Path instance, otherwise create one
+        self.path = path # path to dataset
+
+    # def get_samples(self):
+    #     raise NotImplementedError
+
+    def load_trimesh(self, idx):
+        """
+        Load TriMesh class for given ID.
+
+        Parameters
+        -------------------------------
+        ids  : list list of ID's of the corresponding Shrec models
+
+        Outputs
+        -------------------------------
+        meshes  : list of two meshes as trimesh.TriMesh class
+        """
+        idx1, idx2 = self.combinations[idx]
+        ids = [idx1, idx2]
+        meshes = [tm.TriMesh(self.verts_list[i], self.faces_list[i]) for i in ids]
+
+        return meshes
+
+    def get_p2p(self, idx):
+        """
+        Get point to point map for given ID.
+        Parameters
+        -------------------------------
+        idx : ID of combination to get point to point map for
+        
+        Outputs
+        -------------------------------
+        p2p_map : point to point map
+        """
+        idx1, idx2 = self.combinations[idx]
+        p2p_map = self.corres_dict[(idx1, idx2)]
+
+        if p2p_map.size(0) == self.verts_list[idx1].size(0) + self.verts_list[idx2].size(0):
+            p2p_map = p2p_map[:self.verts_list[idx2].size(0)]
+
+        return p2p_map
+
+    def __len__(self):
+        return len(self.combinations)
+
+    def __getitem__(self, idx):
+        idx1, idx2 = self.combinations[idx]
+
+        shape1 = {
+            "xyz": self.verts_list[idx1],
+            "faces": self.faces_list[idx1]
+        }
+
+        shape2 = {
+            "xyz": self.verts_list[idx2],
+            "faces": self.faces_list[idx2]
+        }
+
+        # Compute fmap
+        map21 = self.corres_dict[(idx1, idx2)]
+
+        return {"shape1": shape1, "shape2": shape2, "map21": map21}
+    
 
 class Faust:
     # Calculating p2p ground truth maps for evaluation takes too long!
@@ -395,6 +462,89 @@ class ShrecPartialDataset(Dataset):
 
         return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt,
                 "map21": map21, "gt_partiality_mask12": gt_partiality_mask12, "gt_partiality_mask21": gt_partiality_mask21}
+
+class Tosca(Dataset):
+    """
+    Download dataset from https://vision.in.tum.de/data/datasets/partial
+    """
+    def __init__(self, path, name="cuts", selected=False, verbose=True):
+        #TODO: add remeshed shapes as extra difficulty
+        super().__init__(path)
+
+        if selected:
+            mesh_dirpath = Path(self.path) / "selected" / name
+        else:
+            mesh_dirpath = Path(self.path) / name
+        null_shape_dirpath = Path(self.path) / "null"
+
+        self.used_shapes = sorted([x.stem for x in (mesh_dirpath).iterdir() if ".off" in str(x)])
+        self.null_shapes = sorted([x.stem for x in (null_shape_dirpath).iterdir() if ".off" in str(x)])
+
+        # Get all the files
+        self.verts_list = []
+        self.faces_list = []
+        self.sample_list = []
+
+        # Load the actual files
+        for shape_name in self.used_shapes:
+            # On Mac, iCloud creates .DS_Store files in a directory
+            if ".DS_Store" in shape_name:
+                continue
+            if verbose:
+                print("loading mesh " + str(shape_name))
+
+            verts, faces = pp3d.read_mesh(str(mesh_dirpath / f"{shape_name}.off"))
+
+            # to torch
+            verts = torch.tensor(np.ascontiguousarray(verts)).float()
+            faces = torch.tensor(np.ascontiguousarray(faces))
+            self.verts_list.append(verts)
+            self.faces_list.append(faces)
+            # idx0 = farthest_point_sample(verts.t(), ratio=0.9)
+            # dists, idx1 = square_distance(verts.unsqueeze(0), verts[idx0].unsqueeze(0)).sort(dim=-1)
+            # dists, idx1 = dists[:, :, :130].clone(), idx1[:, :, :130].clone()
+            # self.sample_list.append((idx0, idx1, dists))
+
+        for shape_name in self.null_shapes:
+            # On Mac, iCloud creates .DS_Store files in a directory
+            if ".DS_Store" in shape_name:
+                continue
+            if verbose:
+                print("loading mesh " + str(shape_name))
+
+            verts, faces = pp3d.read_mesh(str(null_shape_dirpath / f"{shape_name}.off"))
+
+            # to torch
+            verts = torch.tensor(np.ascontiguousarray(verts)).float()
+            faces = torch.tensor(np.ascontiguousarray(faces))
+            self.verts_list.append(verts)
+            self.faces_list.append(faces)
+            # idx0 = farthest_point_sample(verts.t(), ratio=0.9)
+            # dists, idx1 = square_distance(verts.unsqueeze(0), verts[idx0].unsqueeze(0)).sort(dim=-1)
+            # dists, idx1 = dists[:, :, :130].clone(), idx1[:, :, :130].clone()
+            # self.sample_list.append((idx0, idx1, dists))
+        
+        # Meshes are in the same folder as maps
+        corres_path = mesh_dirpath
+        # The correspondences are given wrt the null shape
+        all_combs = [x.stem for x in corres_path.iterdir() if ".gt" in str(x)]
+        self.corres_dict = {}
+        for x in all_combs:
+            y = x.split("_")[0]
+            if x in self.used_shapes and y in self.null_shapes:
+                # map towards high-res original, indices are starting at 1, not 0
+                map_x_hr = torch.from_numpy(np.loadtxt(corres_path / f"{x}.gt", dtype=np.int32)).long()
+                map_x_hr = torch.tensor([x-1 for x in map_x_hr])
+                # map from high-res original to remeshed
+                map_hr_re = torch.from_numpy(np.loadtxt(null_shape_dirpath / f"{y}.remesh", dtype=np.int32)).long()
+                map_hr_re = torch.tensor([x-1 for x in map_hr_re])
+                self.corres_dict[(len(self.used_shapes) + self.null_shapes.index(y)), self.used_shapes.index(x)] = map_hr_re[map_x_hr]
+
+        # set combinations
+        self.combinations = list(self.corres_dict.keys())
+
+        if verbose:
+            print("Initialization done!")
 
 
 def shape_to_device(dict_shape, device):
