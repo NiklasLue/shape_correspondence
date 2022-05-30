@@ -65,13 +65,7 @@ def read_obj(filepath):
                 faces.append([int(x.split('/')[0]) - 1 for x in line[1:]])
 
     return np.asarray(vertices), np.asarray(faces)
-
-def read_ply(path):
-    mesh = o3d.io.read_triangle_mesh(path)
-    # vertices = np.asarray(mesh.vertices)
-    # faces = np.asarray(mesh.triangles, dtype=int)
-
-    return mesh.vertices, mesh.triangles
+    
 
 def write_off(filepath, vertices, faces, precision=None, face_colors=None):
     """

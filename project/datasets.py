@@ -6,12 +6,12 @@ import numpy as np
 import potpourri3d as pp3d
 import torch
 from torch.utils.data import Dataset
-from ..diffusion_net import geometry as dng
-from ..diffusion_net import utils as dnu
-from .utils import farthest_point_sample, square_distance
 
-from ..spectral import projection_utils as pju
-from ..mesh import trimesh as tm
+from diffusion_net import geometry as dng
+from diffusion_net import utils as dnu
+from .utils import farthest_point_sample, square_distance
+from . import projection_utils as pju 
+from .trimesh import TriMeshPly as tm
 
 class Dataset:
 
@@ -36,7 +36,7 @@ class Dataset:
         """
         idx1, idx2 = self.combinations[idx]
         ids = [idx1, idx2]
-        meshes = [tm.TriMesh(self.verts_list[i], self.faces_list[i]) for i in ids]
+        meshes = [tm(self.verts_list[i], self.faces_list[i]) for i in ids]
 
         return meshes
 
@@ -98,7 +98,7 @@ class Faust:
 
         paths = [self.path / mode / type / (mode_prefix + type_prefix + nr + ".ply") for nr in sample_nr]
 
-        meshes = [tm.TriMesh(str(path)) for path in paths]
+        meshes = [tm(str(path)) for path in paths]
 
         return meshes
 
@@ -199,7 +199,7 @@ class FaustRep:
         """
         idx1, idx2 = self.combinations[idx]
         ids = [idx1, idx2]
-        meshes = [tm.TriMesh(self.verts_list[i], self.faces_list[i]) for i in ids]
+        meshes = [tm(self.verts_list[i], self.faces_list[i]) for i in ids]
 
         return meshes
 
@@ -380,7 +380,7 @@ class ShrecPartialDataset(Dataset):
         """
         idx1, idx2 = self.combinations[idx]
         ids = [idx1, idx2]
-        meshes = [tm.TriMesh(self.verts_list[i], self.faces_list[i]) for i in ids]
+        meshes = [tm(self.verts_list[i], self.faces_list[i]) for i in ids]
 
         return meshes
 

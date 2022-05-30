@@ -874,25 +874,6 @@ class TriMesh:
         """
         self._edges = geom.edges_from_faces(self.facelist)
 
-    def barycentric_to_points(self, b, triangle_id):
-        """
-        calculates euclidean coordinates from given barycentric coordinates and triangles
-        :param b: barycentric coordinates (n, 3)
-        :param triangle_id: list of triangle ID's corresponding to the barycentric coordinates (n)
-
-        Returns
-        ---------
-        p : (n, 3) float
-          Point coordinates in euclidean space
-        """
-
-        if self._triangle_vertices is None:
-            self._init_triangles()
-
-        p = trimesh.triangles.barycentric_to_points(self._triangle_vertices[triangle_id], b)
-
-        return p
-
     def _reset_vertex_attributes(self):
         """
         Resets attributes which depend on the vertex positions
@@ -950,11 +931,9 @@ class TriMesh:
             self.vertlist, self.facelist = file_utils.read_off(meshpath)
         elif os.path.splitext(meshpath)[1] == '.obj':
             self.vertlist, self.facelist = file_utils.read_obj(meshpath)
-        elif os.path.splitext(meshpath)[1] == '.ply':
-            self.vertlist, self.facelist = file_utils.read_ply(meshpath)
 
         else:
-            raise ValueError('Provide file in .off, .obj or .ply format')
+            raise ValueError('Provide file in .off or .obj format')
 
         self.path = meshpath
         self.meshname = os.path.splitext(os.path.basename(meshpath))[0]
@@ -995,10 +974,3 @@ class TriMesh:
         self._solver_geod = None
         self._solver_heat = None
         self._solver_lap = None
-
-        self._triangle_vertices = None
-
-    def _init_triangles(self):
-
-        print("Initializing list of triangle vertices...")
-        self._triangle_vertices = self.vertlist[self.facelist]

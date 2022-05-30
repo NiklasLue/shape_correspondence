@@ -1,15 +1,11 @@
 import copy
-import time
-
-from tqdm import tqdm
 
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 from scipy.optimize import fmin_cg
 
+from .base_functions import loss, loss_grad
 import pyFM.signatures as sg
-import pyFM.optimize as opt_func
-import pyFM.refine
 import pyFM.spectral as spectral
 
 
@@ -301,8 +297,8 @@ class CoupledFunctionalMapping:
                 
         # Optimization
         # To be define l_bfgs_b
-        res = fmin_l_bfgs_b(opt_func.loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=opt_func.loss_grad, args=args)
-        res = fmin_cg(opt_func.loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=opt_func.loss_grad, args=args)
+        res = fmin_l_bfgs_b(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
+        res = fmin_cg(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
         
         #A = res[0][:self.k1*self.k2]
         sol = res
