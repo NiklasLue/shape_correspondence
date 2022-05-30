@@ -34,7 +34,6 @@ def descr_preservation_grad(C, descr1_red, descr2_red):
     """
     return (C @ descr1_red - descr2_red) @ descr1_red.T
 
-
 def LB_commutation(C, ev_sqdiff):
     """
     Compute the LB commutativity constraint
@@ -143,7 +142,6 @@ def oplist_commutation_grad(C, op_list):
         gradient += op_commutation_grad(C, op1, op2)
     return gradient
 
-
 def energy_func_std(C, descr_mu, lap_mu, descr_comm_mu, orient_mu, descr1_red, descr2_red, list_descr, orient_op, ev_sqdiff):
     """
     Evaluation of the energy for standard FM computation
@@ -231,3 +229,5 @@ def grad_energy_std(C, descr_mu, lap_mu, descr_comm_mu, orient_mu, descr1_red, d
 
     gradient[:,0] = 0
     return gradient.reshape(-1)
+    
+    

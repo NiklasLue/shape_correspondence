@@ -1,6 +1,11 @@
 import os
+import sys
 from shutil import copyfile
+from collections import defaultdict
+
 import numpy as np
+import pandas as pd
+import open3d as o3d
 
 
 def read_off(filepath):
@@ -60,7 +65,7 @@ def read_obj(filepath):
                 faces.append([int(x.split('/')[0]) - 1 for x in line[1:]])
 
     return np.asarray(vertices), np.asarray(faces)
-
+    
 
 def write_off(filepath, vertices, faces, precision=None, face_colors=None):
     """

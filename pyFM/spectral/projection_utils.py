@@ -930,3 +930,4 @@ def pointTriangleDistance(TRI, P, return_bary=False):
 
     else:
         return dist,PP0,np.array([1-s-t, s, t])
+

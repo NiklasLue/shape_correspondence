@@ -8,6 +8,7 @@ from . import geometry as geom
 from . import laplacian
 import scipy.linalg
 import scipy.sparse as sparse
+import trimesh
 
 import potpourri3d as pp3d
 import robust_laplacian
@@ -70,6 +71,7 @@ class TriMesh:
         # Differnetiate between [path] or [vertex] or [vertex, faces]
         if len(args) == 1 and type(args[0]) is str:
             self._load_mesh(args[0])
+            self.path = args[0]
         elif len(args) == 1:
             self.vertlist = args[0]
             self.facelist = None
