@@ -2,7 +2,7 @@ import copy
 
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
-from scipy.optimize import fmin_cg
+from scipy.optimize import fmin_cg, minimize
 
 from .base_functions import loss, loss_grad
 import pyFM.signatures as sg
@@ -254,7 +254,7 @@ class CoupledFunctionalMapping:
 
         return self
     
-    def fit(self, mu_cons, mu_LB, optinit='zeros', verbose=False):
+    def fit(self, mu_pres = 0, mu_coup = 0, mu_LB = 0, mu_des = 0, mu_orient = 0, optinit='zeros', verbose=False):
         """
         Solves the functional map optimization problem :
 
@@ -282,6 +282,22 @@ class CoupledFunctionalMapping:
         descr1_red = self.project(self.descr1, mesh_ind=1)  # (n_ev1, n_descr)
         descr2_red = self.project(self.descr2, mesh_ind=2)  # (n_ev2, n_descr)
         
+        
+         # Compute multiplicative operators associated to each descriptor
+        list_descr = []
+        if mu_des > 0:
+            if verbose:
+                print('Computing commutativity operators')
+            list_descr = self.compute_descr_op()  # (n_descr, ((k1,k1), (k2,k2)) )
+
+        # Compute orientation operators associated to each descriptor
+        orient_op = []
+        if mu_orient > 0:
+            if verbose:
+                print('Computing orientation operators')
+            orient_op = self.compute_orientation_op(reversing=orient_reversing)  # (n_descr,)
+        
+       
         # Squared difference of eigenvalues
         ev_sqdiff = np.square(self.mesh1.eigenvalues[None, :self.k1] - self.mesh2.eigenvalues[:self.k2, None])
         ev_sqdiff /= ev_sqdiff.sum()
@@ -290,18 +306,18 @@ class CoupledFunctionalMapping:
         W = self.weight_matrix()
 
         # Arguments for the optimization problem
-        args = (descr1_red, descr2_red, ev_sqdiff, mu_cons, mu_LB) # to add weight matrix W
+        args = (descr1_red, descr2_red, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient) # to add weight matrix W
 
         # Initialization
         C1, C2 = np.zeros((self.k2, self.k1)), np.zeros((self.k1, self.k2))
                 
         # Optimization
         # To be define l_bfgs_b
-        res = fmin_l_bfgs_b(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
-        res = fmin_cg(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
+        #res = fmin_l_bfgs_b(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
+        res = minimize(loss, np.concatenate((C1.ravel(), C2.ravel())), method = 'L-BFGS-B', jac=loss_grad, args=args)
         
         #A = res[0][:self.k1*self.k2]
-        sol = res
+        sol = res.x
         C1sol, C2sol = sol[0:len(sol)//2], sol[len(sol)//2 : len(sol)]
         self.C1, self.C2 = np.reshape(C1sol, (self.k2,self.k1)), np.reshape(C2sol, (self.k1,self.k2))
 
@@ -324,6 +340,74 @@ class CoupledFunctionalMapping:
                 W[i,j] = np.exp(-0.03*np.sqrt(i**2 + j**2))*np.linalg.norm(np.cross(direction, np.array([i, j, 0])-np.array([1, 1, 0])))
         return W
         
+        
+        
+        
+    def compute_descr_op(self):
+        """
+        Compute the multiplication operators associated with the descriptors
+
+        Output
+        ---------------------------
+        operators : n_descr long list of ((k1,k1),(k2,k2)) operators.
+        """
+        if not self.preprocessed:
+            raise ValueError("Preprocessing must be done before computing the new descriptors")
+
+        pinv1 = self.mesh1.eigenvectors[:, :self.k1].T @ self.mesh1.A  # (k1,n)
+        pinv2 = self.mesh2.eigenvectors[:, :self.k2].T @ self.mesh2.A  # (k2,n)
+
+        list_descr = [
+                      (pinv1@(self.descr1[:, i, None] * self.mesh1.eigenvectors[:, :self.k1]),
+                       pinv2@(self.descr2[:, i, None] * self.mesh2.eigenvectors[:, :self.k2])
+                       )
+                      for i in range(self.descr1.shape[1])
+                      ]
+
+        return list_descr
+
+    def compute_orientation_op(self, reversing=False, normalize=False):
+        """
+        Compute orientation preserving or reversing operators associated to each descriptor.
+
+        Parameters
+        ---------------------------------
+        reversing : whether to return operators associated to orientation inversion instead
+                    of orientation preservation (return the opposite of the second operator)
+        normalize : whether to normalize the gradient on each face. Might improve results
+                    according to the authors
+
+        Output
+        ---------------------------------
+        list_op : (n_descr,) where term i contains (D1,D2) respectively of size (k1,k1) and
+                  (k2,k2) which represent operators supposed to commute.
+        """
+        n_descr = self.descr1.shape[1]
+
+        # Precompute the inverse of the eigenvectors matrix
+        pinv1 = self.mesh1.eigenvectors[:, :self.k1].T @ self.mesh1.A  # (k1,n)
+        pinv2 = self.mesh2.eigenvectors[:, :self.k2].T @ self.mesh2.A  # (k2,n)
+
+        # Compute the gradient of each descriptor
+        grads1 = [self.mesh1.gradient(self.descr1[:, i], normalize=normalize) for i in range(n_descr)]
+        grads2 = [self.mesh2.gradient(self.descr2[:, i], normalize=normalize) for i in range(n_descr)]
+
+        # Compute the operators in reduced basis
+        can_op1 = [pinv1 @ self.mesh1.orientation_op(gradf) @ self.mesh1.eigenvectors[:, :self.k1]
+                   for gradf in grads1]
+
+        if reversing:
+            can_op2 = [- pinv2 @ self.mesh2.orientation_op(gradf) @ self.mesh2.eigenvectors[:, :self.k2]
+                       for gradf in grads2]
+        else:
+            can_op2 = [pinv2 @ self.mesh2.orientation_op(gradf) @ self.mesh2.eigenvectors[:, :self.k2]
+                       for gradf in grads2]
+
+        list_op = list(zip(can_op1, can_op2))
+
+        return list_op
+    
+
     def project(self, func, k=None, mesh_ind=1):
         """
         Projects a function on the LB basis
