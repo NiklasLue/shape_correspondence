@@ -15,9 +15,10 @@ from .trimesh import TriMeshPly as tm
 
 class Dataset:
 
-    def __init__(self, path):
+    def __init__(self, path, use_adj=False):
         #TODO: create check if its a pathlib.Path instance, otherwise create one
         self.path = path # path to dataset
+        self.use_adj = use_adj
 
     # def get_samples(self):
     #     raise NotImplementedError
@@ -142,7 +143,7 @@ class Faust:
 
 class FaustRep:
 
-    def __init__(self, path, name="reg", verbose=True):
+    def __init__(self, path, name="reg", use_adj=False, verbose=True):
         self.path = path # path to FAUST dataset
         self.used_shapes = sorted([x.stem for x in (Path(path) / "training" / "registrations").iterdir() if (name in x.stem and ".ply" in str(x))])
 
@@ -253,7 +254,7 @@ class FaustRep:
 
 
 class ShrecPartialDataset(Dataset):
-    def __init__(self, root_dir, name="cuts", k_eig=128, n_fmap=30, use_cache=True, op_cache_dir=None, verbose=True):
+    def __init__(self, root_dir, name="cuts", k_eig=128, n_fmap=30, use_cache=True, op_cache_dir=None, use_adj=False, verbose=True):
 
         self.k_eig = k_eig
         self.n_fmap = n_fmap
@@ -467,9 +468,8 @@ class Tosca(Dataset):
     """
     Download dataset from https://vision.in.tum.de/data/datasets/partial
     """
-    def __init__(self, path, name="cuts", selected=False, verbose=True):
-        #TODO: add remeshed shapes as extra difficulty
-        super().__init__(path)
+    def __init__(self, path, name="cuts", selected=False, use_adj=False, verbose=True):
+        super().__init__(path, use_adj=use_adj)
 
         if selected:
             mesh_dirpath = Path(self.path) / "selected" / name
@@ -529,6 +529,8 @@ class Tosca(Dataset):
         # The correspondences are given wrt the null shape
         all_combs = [x.stem for x in corres_path.iterdir() if ".gt" in str(x)]
         self.corres_dict = {}
+        if not self.use_adj:
+            self.mask_dict = {}
         for x in all_combs:
             y = x.split("_")[0]
             if x in self.used_shapes and y in self.null_shapes:
@@ -538,7 +540,22 @@ class Tosca(Dataset):
                 # map from high-res original to remeshed
                 map_hr_re = torch.from_numpy(np.loadtxt(null_shape_dirpath / f"{y}.remesh", dtype=np.int32)).long()
                 map_hr_re = torch.tensor([x-1 for x in map_hr_re])
-                self.corres_dict[(len(self.used_shapes) + self.null_shapes.index(y)), self.used_shapes.index(x)] = map_hr_re[map_x_hr]
+                # get map from partial shape to null shape
+                gt_map12 = map_hr_re[map_x_hr]
+                # get map from null to partial if use_adj == False, i.e. p2p map describes mesh2 -> mesh1
+                if not self.use_adj:
+                    # create list of zeros with length = number of vertices on null shape
+                    gt_map21 = list([-1] * len(self.verts_list[(len(self.used_shapes) + self.null_shapes.index(y))]))
+                    for j, i in enumerate(gt_map12):
+                        gt_map21[i] = j
+                    
+                    # create mask for unmapped vertices in mesh2
+                    mask_21 = [x for x in range(len(gt_map21)) if gt_map21[x] == -1]
+
+                    self.corres_dict[(self.used_shapes.index(x), (len(self.used_shapes) + self.null_shapes.index(y)))] = gt_map21
+                    self.masks_dict[(self.used_shapes.index(x), (len(self.used_shapes) + self.null_shapes.index(y)), )] = mask_21
+                else:
+                    self.corres_dict[((len(self.used_shapes) + self.null_shapes.index(y)), self.used_shapes.index(x))] = gt_map12
 
         # set combinations
         self.combinations = list(self.corres_dict.keys())

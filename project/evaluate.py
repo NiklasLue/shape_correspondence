@@ -30,6 +30,7 @@ class EvaluateModel:
             self.acc_zo = []
 
         self.data = data_class(data_path, **data_params)
+        self.data_params = data_params
 
     def eval(self, accum_dist=True):
         """
@@ -38,6 +39,12 @@ class EvaluateModel:
         if accum_dist:
             dist_list = []
 
+        # Which p2p map to use. use_adj == True -> map12, use_adj == False -> map21
+        if 'use_adj' in self.data_params:
+            use_adj = self.data_params['use_adj']
+        else:
+            use_adj = False
+
         for idx in tqdm(range(len(self.data))):
             # TODO: consider precomputing evecs, etc. for each mesh to avoid multiple computations for the same mesh
             mesh1, mesh2 = self.data.load_trimesh(idx)
@@ -45,13 +52,13 @@ class EvaluateModel:
 
             model.preprocess(**self.preprocess_params, verbose=self.verbose)
             model.fit(**self.fit_params, verbose=self.verbose)
-            p2p_21 = model.get_p2p()
+            p2p_21 = model.get_p2p(use_adj=use_adj)
 
             if self.refine:
                 model.icp_refine('classic', verbose=self.verbose)
-                p2p_21_icp = model.get_p2p()
+                p2p_21_icp = model.get_p2p(use_adj=use_adj)
                 model.zoomout_refine('classic', verbose=self.verbose)
-                p2p_21_zo = model.get_p2p()
+                p2p_21_zo = model.get_p2p(use_adj=use_adj)
 
             A_geod = mesh1.get_geodesic(verbose=self.verbose)
             gt_p2p = self.data.get_p2p(idx)
