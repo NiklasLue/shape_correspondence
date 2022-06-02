@@ -4,6 +4,7 @@ import trimesh
 
 from pyFM.mesh import file_utils
 from pyFM.mesh.trimesh import TriMesh
+from .utils import read_ply
 
 class TriMeshPly(TriMesh):
     """
@@ -77,7 +78,7 @@ class TriMeshPly(TriMesh):
         elif os.path.splitext(meshpath)[1] == '.obj':
             self.vertlist, self.facelist = file_utils.read_obj(meshpath)
         elif os.path.splitext(meshpath)[1] == '.ply':
-            self.vertlist, self.facelist = file_utils.read_ply(meshpath)
+            self.vertlist, self.facelist = read_ply(meshpath)
 
         else:
             raise ValueError('Provide file in .off, .obj or .ply format')
