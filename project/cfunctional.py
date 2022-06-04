@@ -254,7 +254,7 @@ class CoupledFunctionalMapping:
 
         return self
     
-    def fit(self, mu_pres = 0, mu_coup = 0, mu_LB = 0, mu_des = 0, mu_orient = 0, optinit='zeros', verbose=False):
+    def fit(self, mu_pres = 1, mu_coup = 1e-1, mu_LB = 0, mu_des = 0, mu_orient = 0, optinit='zeros', verbose=False):
         """
         Solves the functional map optimization problem :
 
@@ -302,6 +302,7 @@ class CoupledFunctionalMapping:
         ev_sqdiff = np.square(self.mesh1.eigenvalues[None, :self.k1] - self.mesh2.eigenvalues[:self.k2, None])
         ev_sqdiff /= ev_sqdiff.sum()
         
+        
         # Compute weight matrix 
         W = self.weight_matrix()
 
@@ -310,6 +311,7 @@ class CoupledFunctionalMapping:
 
         # Initialization
         C1, C2 = np.zeros((self.k2, self.k1)), np.zeros((self.k1, self.k2))
+        #C1, C2 = np.eye(self.k2, self.k1), np.eye(self.k1, self.k2)
                 
         # Optimization
         # To be define l_bfgs_b

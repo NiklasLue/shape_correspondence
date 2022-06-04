@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyFM.optimize.base_functions import descr_preservation, LB_commutation, descr_preservation_grad, LB_commutation_grad, oplist_commutation, oplist_commutation_grad
+from pyFM.optimize.base_functions import descr_preservation, LB_commutation, descr_preservation_grad, LB_commutation_grad, op_commutation, op_commutation_grad, oplist_commutation, oplist_commutation_grad
 
 
 def L21(X):
@@ -10,6 +10,44 @@ def L21(X):
 def L21_grad(X):
     return 0
 
+def oplist_commutation_C2(C, op_list):
+    """
+    Compute the operator commutativity constraint for a list of pairs of operators
+    Can be used with a list of descriptor multiplication operator
+
+    Parameters
+    ---------------------
+    C   : (K2,K1) Functional map
+    op_list : list of tuple( (K1,K1), (K2,K2) ) operators on first and second basis
+
+    Output
+    ---------------------
+    energy : (float) sum of operators commutativity squared norm
+    """
+    energy = 0
+    for (op1, op2) in op_list:
+        energy += op_commutation(C, op2, op1)
+
+    return energy
+
+def oplist_commutation_grad_C2(C, op_list):
+    """
+    Compute the gradient of the operator commutativity constraint for a list of pairs of operators
+    Can be used with a list of descriptor multiplication operator
+
+    Parameters
+    ---------------------
+    C   : (K2,K1) Functional map
+    op_list : list of tuple( (K1,K1), (K2,K2) ) operators on first and second basis
+
+    Output
+    ---------------------
+    gradient : (K2,K1) gradient of the sum of operators commutativity squared norm
+    """
+    gradient = 0
+    for (op1, op2) in op_list:
+        gradient += op_commutation_grad(C, op2, op1)
+    return gradient
 
 
 def oplist_commutation_t(C, op_list):
@@ -78,11 +116,11 @@ def loss(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_
     
     # Descriptor Commutativity
     if mu_des >0:
-        loss += mu_des * (oplist_commutation(C1, list_descr) + oplist_commutation(C2.T, list_descr))
+        loss += mu_des * (oplist_commutation(C1, list_descr) + oplist_commutation_C2(C2, list_descr)) #oplist_commutation(C2.T, orient_op)
     
     #Orientation
     if mu_orient >0:
-        loss += mu_orient * (oplist_commutation(C1, orient_op) + oplist_commutation(C2.T, orient_op))
+        loss += mu_orient * (oplist_commutation(C1, orient_op) + oplist_commutation_C2(C2, orient_op)) #oplist_commutation(C2.T, orient_op)
                      
     return loss 
                      
@@ -132,11 +170,11 @@ def loss_grad(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB
      
     if mu_des >0:
         grad_C1 += mu_des * oplist_commutation_grad(C1, list_descr)
-        grad_C2 += mu_des * oplist_commutation_grad(C2, list_descr)
+        grad_C2 += mu_des * oplist_commutation_grad_C2(C2, list_descr) #oplist_commutation_grad(C2.T, orient_op).T
     
     if mu_orient >0:
         grad_C1 += mu_orient * oplist_commutation_grad(C1, orient_op)
-        grad_C2 += mu_orient * oplist_commutation_grad(C2.T, orient_op).T
+        grad_C2 += mu_orient * oplist_commutation_grad_C2(C2, orient_op) #oplist_commutation_grad(C2.T, orient_op).T
     
    
     return np.concatenate((grad_C1.ravel(),grad_C2.ravel()))
