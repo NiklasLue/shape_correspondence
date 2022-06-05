@@ -255,6 +255,9 @@ class FaustRep:
 
 class ShrecPartialDataset(Dataset):
     def __init__(self, root_dir, name="cuts", k_eig=128, n_fmap=30, use_cache=True, op_cache_dir=None, use_adj=False, verbose=True):
+        """
+        https://github.com/pvnieo/DPFM/blob/master/dpfm/shrec_partial_dataset.py
+        """
 
         self.k_eig = k_eig
         self.n_fmap = n_fmap
