@@ -640,6 +640,8 @@ class Tosca(Dataset):
         # idx1: null shape, idx2: partial shape
         idx1, idx2 = self.combinations[idx]
 
+        meshes = self.load_trimesh(idx)
+
         shape1 = {
             "xyz": self.verts_list[idx1],
             "faces": self.faces_list[idx1],
@@ -652,6 +654,7 @@ class Tosca(Dataset):
             "gradY": self.gradY_list[idx1],
             "name": self.used_shapes[idx1],
             "sample_idx": self.sample_list[idx1],
+            "mesh": meshes[0]
         }
 
         shape2 = {
@@ -666,6 +669,7 @@ class Tosca(Dataset):
             "gradY": self.gradY_list[idx2],
             "name": self.used_shapes[idx2],
             "sample_idx": self.sample_list[idx2],
+            "mesh": meshes[1]
         }
 
         # Compute fmap
