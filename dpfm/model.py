@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from diffusion_net.layers import DiffusionNet
-from utils import get_mask, nn_interpolate
+from dpfm.utils import get_mask, nn_interpolate
 
 
 def MLP(channels: list, do_bn=True):
