@@ -1,9 +1,9 @@
 # dataset params
 dataset:
-  name: shrec16
-  subset: cuts
-  root_train: ../../data/shrec_partial_train
-  root_test: ../../data/shrec_partial_test
+  name: tosca
+  subset: holes
+  root_train: ../../data/SGP_dataset_off/train
+  root_test: ../../data/SGP_dataset_off/test
   cache_dir: ../../data/op_cache
 
 
@@ -22,20 +22,20 @@ training:
 
 # fmap module params
 fmap:
-  n_fmap: 50  # number of eigenvectors used for fmap
+  n_fmap: 30  # number of eigenvectors used for fmap
   k_eig: 128  # number of eigenvectors used for diffusion
   n_feat: 128
   C_in: 3
   lambda_: 100
   resolvant_gamma: 0.5
-  robust: False
+  robust: True
 
 # attention module params
 attention:
   num_head: 4
   gnn_dim: 128
   ref_n_layers: 1
-  cross_sampling_ratio: 0.4
+  cross_sampling_ratio: 0.3
   attention_type: normal
 
 # overlap module
@@ -46,9 +46,9 @@ overlap:
 loss:
   w_fmap: 1
   w_acc: 1
-  w_nce: 0.0
+  w_nce: 1
   nce_t: 0.07
-  nce_num_pairs: 4096
+  nce_num_pairs: 512
 
 # misc
 misc:

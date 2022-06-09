@@ -1,9 +1,9 @@
 # dataset params
 dataset:
-  name: shrec16
+  name: tosca
   subset: cuts
-  root_train: ../../data/shrec_partial_train
-  root_test: ../../data/shrec_partial_test
+  root_train: ../../data/SGP_dataset_off/train
+  root_test: ../../data/SGP_dataset_off/test
   cache_dir: ../../data/op_cache
 
 
