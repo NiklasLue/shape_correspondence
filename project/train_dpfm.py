@@ -40,7 +40,10 @@ def train_net(cfg):
                                             n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir, use_adj=True)
         
         #TODO set train and validation ratio
-        train, val = torch.utils.data.random_split(train_dataset,[1,1])
+        train_size = int(0.8 * len(train_dataset))
+        val_size = len(train_dataset) - train_size
+        
+        train, val = torch.utils.data.random_split(train_dataset, [train_size, val_size])
         
         #Can increase num_workers to speed up training
         train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=True, num_workers=0)
