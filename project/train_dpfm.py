@@ -127,8 +127,8 @@ def train_net(cfg):
 
             #log 
             iterations += 1
-            #if iterations % cfg["misc"]["log_interval"] == 0:
-            print(f"#epoch:{epoch}, #batch:{i + 1}, #iteration:{iterations}, train_loss:{train_loss}, val_loss:{val_loss}")
+            if iterations % cfg["misc"]["log_interval"] == 0:
+                print(f"#epoch:{epoch}, #batch:{i + 1}, #iteration:{iterations}, train_loss:{train_loss}, val_loss:{val_loss}")
         
        
         
