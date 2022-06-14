@@ -4,7 +4,7 @@ import yaml
 
 import tqdm
 import torch
-
+from torch.utils.tensorboard import SummaryWriter
 
 from dpfm.model import DPFMNet
 from dpfm.utils import DPFMLoss, augment_batch
@@ -24,7 +24,7 @@ def train_net(cfg):
     op_cache_dir = cfg["dataset"]["cache_dir"]
     dataset_path = cfg["dataset"]["root_train"]
 
-    save_dir_name = f'saved_models_{cfg["dataset"]["subset"]}'
+    save_dir_name = f'saved_models_{cfg["dataset"]["subset"]}_3'
     model_save_path = os.path.join(base_path, f"data/{save_dir_name}/ep" + "_{}.pth")
     if not os.path.exists(os.path.join(base_path, f"data/{save_dir_name}/")):
         os.makedirs(os.path.join(base_path, f"data/{save_dir_name}/"))
@@ -66,15 +66,16 @@ def train_net(cfg):
     iterations = 0
     lrs = []
     lambda1 = lambda epoch: 0.65 ** epoch
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1)
-    
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
+    # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1, verbose=True)
+    writer = SummaryWriter()
+
     for epoch in tqdm.tqdm(range(1, cfg["training"]["epochs"] + 1)):
-
-
         dpfm_net.train()
     
-        #training step
-        train_loss = 0.0
+        ### training step
+        # train_loss = 0.0
+        train_loss = []
         for i, data in enumerate(train_loader):
             data = shape_to_device(data, device)
 
@@ -87,59 +88,66 @@ def train_net(cfg):
             gt_partiality_mask12, gt_partiality_mask21 = data["gt_partiality_mask12"], data["gt_partiality_mask21"]
 
             # do iteration
-            
             C_pred, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpfm_net(data)
-            train_loss = criterion(C_gt, C_pred, map21, use_feat1, use_feat2,
+            out = criterion(C_gt, C_pred, map21, use_feat1, use_feat2,
                              overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
             
-            train_loss.backward()
+            out.backward()
             optimizer.step()
             optimizer.zero_grad()
-            train_loss += train_loss.item()
+            train_loss.append(out.item())
+            # train_loss += train_loss.item()
+
+            iterations += 1
         
-        # lr decay
-        scheduler.step()    
+        avg_train_loss = sum(train_loss) / len(train_loss)
             
-        #validation step  
-        
+        ### validation step  
         #TODO: early stopping
-        val_loss = 0.0
+        val_loss = []
+        # val_loss = 0.0
         dpfm_net.eval()     # Optional when not using Model Specific layer
         for i, data in enumerate(valid_loader):
             data = shape_to_device(data, device)
 
+            # NO data augmentation in validation step
             # data augmentation might consider set different params with the train_data
-            data = augment_batch(data, rot_x=30, rot_y=30, rot_z=60, std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
+            # data = augment_batch(data, rot_x=30, rot_y=30, rot_z=60, std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
                 
             # prepare iteration data
             C_gt = data["C_gt"].unsqueeze(0)
             map21 = data["map21"]
             gt_partiality_mask12, gt_partiality_mask21 = data["gt_partiality_mask12"], data["gt_partiality_mask21"]
-            
-            
-            
-            
+
             #calculate validation loss after each epoch
             C_pred, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpfm_net(data)
-            val_loss = criterion(C_gt, C_pred, map21, use_feat1, use_feat2,
+            out = criterion(C_gt, C_pred, map21, use_feat1, use_feat2,
                             overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
 
-            
-            val_loss += val_loss.item() 
-            
+            val_loss.append(out.item())
+            # val_loss += val_loss.item() 
 
-            #log 
+            # also add validation iterations to iterations
             iterations += 1
-            if iterations % cfg["misc"]["log_interval"] == 0:
-                print(f"#epoch:{epoch}, #batch:{i + 1}, #iteration:{iterations}, train_loss:{train_loss}, val_loss:{val_loss}")
-        
-       
-        
-           
-        
+
+        avg_val_loss = sum(val_loss) / len(val_loss)
+
+        # print log every epoch instead of defined by iteration
+        # if iterations % cfg["misc"]["log_interval"] == 0:
+        # print(f"#epoch:{epoch}, #batch:{i + 1}, #iteration:{iterations}, train_loss:{avg_train_loss}, val_loss:{avg_val_loss}")
+        print(f"#epoch:{epoch}, #iteration:{iterations}, train_loss:{avg_train_loss}, val_loss:{avg_val_loss}")
+
+        # lr decay
+        scheduler.step(avg_val_loss)    
+
+        writer.add_scalar("Loss/val", avg_val_loss, epoch)
+        writer.add_scalar("Loss/train", avg_train_loss, epoch)
+
         # save model
         if (epoch + 1) % cfg["misc"]["checkpoint_interval"] == 0:
             torch.save(dpfm_net.state_dict(), model_save_path.format(epoch))
+    
+    writer.flush()
 
 
 if __name__ == "__main__":
