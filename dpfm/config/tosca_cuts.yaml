@@ -22,13 +22,13 @@ training:
 
 # fmap module params
 fmap:
-  n_fmap: 50  # number of eigenvectors used for fmap
+  n_fmap: 100  # number of eigenvectors used for fmap
   k_eig: 128  # number of eigenvectors used for diffusion
   n_feat: 128
   C_in: 3
   lambda_: 100
   resolvant_gamma: 0.5
-  robust: False
+  robust: True
 
 # attention module params
 attention:
