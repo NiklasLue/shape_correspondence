@@ -17,8 +17,8 @@ optimizer:
   decay_factor: 0.5
 
 training:
-  batch_size: 4
-  epochs: 10
+  batch_size: 10
+  epochs: 50
 
 # fmap module params
 fmap:
