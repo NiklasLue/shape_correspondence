@@ -58,6 +58,7 @@ def train_net(cfg):
     dpfm_net = DPFMNet(cfg).to(device)
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
+    torch.nn.utils.clip_grad_norm_(dpfm_net.parameters(), 1)
     criterion = DPFMLoss(w_fmap=cfg["loss"]["w_fmap"], w_acc=cfg["loss"]["w_acc"], w_nce=cfg["loss"]["w_nce"],
                          nce_t=cfg["loss"]["nce_t"], nce_num_pairs=cfg["loss"]["nce_num_pairs"]).to(device)
 
