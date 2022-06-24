@@ -1,8 +1,7 @@
 import copy
 
 import numpy as np
-from scipy.optimize import fmin_l_bfgs_b
-from scipy.optimize import fmin_cg
+from scipy.optimize import fmin_l_bfgs_b, fmin_cg, minimize
 
 from .base_functions import loss, loss_grad
 import pyFM.signatures as sg
@@ -254,11 +253,11 @@ class CoupledFunctionalMapping:
 
         return self
     
-    def fit(self, mu_cons, mu_LB, optinit='zeros', verbose=False):
+    def fit(self, mu_pres = 1, mu_coup = 1e-1, mu_mask = 0, mu_des = 0, mu_orient = 0, optinit='zeros', optmask = 'lbo', verbose=False):
         """
         Solves the functional map optimization problem :
 
-        min_C1,C2 ||C1@A - B|| + ||A - C2 @ B|| +  mu_cons * ||C1 @ C2 - I||^2)
+        min_C1,C2 ||C1@A - B|| + ||A - C2 @ B|| +  mu_coup * ||C1 @ C2 - I||^2)
               + mu_reg * (sum_i ||Ci * W||^2)
 
         with A and B descriptors, I identity matrix (k2,k2), W weight matrix see D. Eynard, E. Rodola, K. Glashoff, and M. M. Bronstein, 
@@ -268,12 +267,15 @@ class CoupledFunctionalMapping:
         -------------------------------
         w_reg            : weight matrix
       
-        optinit          : 'zeros' (| 'random' | 'identity' |) initialization.
-                           In any case, the first column of the functional map is computed by hand
-                           and not modified during optimization
+        optinit          : 'zeros' (| 'nocoup' | 'identity' |) initialization.
+                           
+        optmask          : 'lbo' (| 'resolvent' | 'slanted' |) mask.
         """
-        if optinit not in ['random', 'identity', 'zeros']:
-            raise ValueError(f"optinit arg should be 'random', 'identity' or 'zeros', not {optinit}")
+        if optinit not in ['nocoup', 'identity', 'zeros']:
+            raise ValueError(f"optinit arg should be 'nocoup', 'identity' or 'zeros', not {optinit}")
+            
+        if optmask not in ['lbo', 'resolvent', 'slanted']:
+            raise ValueError(f"optinit arg should be 'lbo', 'resolvent', 'slanted', not {optinit}")    
 
         if not self.preprocessed:
             self.coupled_preprocess()
@@ -282,35 +284,69 @@ class CoupledFunctionalMapping:
         descr1_red = self.project(self.descr1, mesh_ind=1)  # (n_ev1, n_descr)
         descr2_red = self.project(self.descr2, mesh_ind=2)  # (n_ev2, n_descr)
         
-        # Squared difference of eigenvalues
-        ev_sqdiff = np.square(self.mesh1.eigenvalues[None, :self.k1] - self.mesh2.eigenvalues[:self.k2, None])
-        ev_sqdiff /= ev_sqdiff.sum()
-        
-        # Compute weight matrix 
-        W = self.weight_matrix()
+         # Compute multiplicative operators associated to each descriptor
+        list_descr = []
+        if mu_des > 0:
+            if verbose:
+                print('Computing commutativity operators')
+            list_descr = self.compute_descr_op()  # (n_descr, ((k1,k1), (k2,k2)) )
+
+        # Compute orientation operators associated to each descriptor
+        orient_op = []
+        if mu_orient > 0:
+            if verbose:
+                print('Computing orientation operators')
+            orient_op = self.compute_orientation_op(reversing=orient_reversing)  # (n_descr,)
+          
+        # Compute mask for regularization
+        mask = self.get_mask(optmask)
 
         # Arguments for the optimization problem
-        args = (descr1_red, descr2_red, ev_sqdiff, mu_cons, mu_LB) # to add weight matrix W
-
-        # Initialization
-        C1, C2 = np.zeros((self.k2, self.k1)), np.zeros((self.k1, self.k2))
-                
+        args = (descr1_red, descr2_red, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient) # to add weight matrix W
+        
+        # Initialization of C1 and C2
+        C1, C2 = self.get_x0(optinit, descr1_red, descr2_red, mu_mask)         
+        
         # Optimization
         # To be define l_bfgs_b
-        res = fmin_l_bfgs_b(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
-        res = fmin_cg(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
+        #res = fmin_l_bfgs_b(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
+        res = minimize(loss, np.concatenate((C1.ravel(), C2.ravel())), method = 'L-BFGS-B', jac=loss_grad, args=args)
         
         #A = res[0][:self.k1*self.k2]
-        sol = res
+        sol = res.x
         C1sol, C2sol = sol[0:len(sol)//2], sol[len(sol)//2 : len(sol)]
         self.C1, self.C2 = np.reshape(C1sol, (self.k2,self.k1)), np.reshape(C2sol, (self.k1,self.k2))
-
-    def weight_matrix(self):
+        nit = res.nit
+        print('nit:' + str(nit))
+        
+    def get_mask(self, optmask = 'lbo'):
+        e1, e2 = self.mesh1.eigenvalues[:self.k1],  self.mesh2.eigenvalues[:self.k2]
+        if optmask == 'resolvent': # Resolvent mask (Commutativity with resolvent of LBO)
+            mask = self.resolvent_matrix(e1,e2)
+        elif optmask == 'slanted': # Slanted mask
+            mask = self.slanted_matrix(e1, e2)
+        else: # Squared difference of eigenvalues (LBO commutativity)
+            mask = np.square(self.mesh1.eigenvalues[None, :self.k1] - self.mesh2.eigenvalues[:self.k2, None])
+            mask /= mask.sum()
+        
+        return mask
+        
+    def resolvent_matrix(self, e1,e2):
+        maxev = max(np.max(e1), np.max(e2))
+        e1 /= maxev
+        e2 /= maxev
+        gamma = 0.5
+        mre = (np.nan_to_num(np.power(e2, gamma))/ (np.nan_to_num(np.power(e2, 2 * gamma))+1))[:self.k2, None] - (np.nan_to_num(np.power(e1, gamma))/ (np.nan_to_num(np.power(e1, 2 * gamma))+1))[None, :self.k1]
+        mim = (1/ (np.nan_to_num(np.power(e2, 2 * gamma))+1))[:self.k2, None] - (1/ (np.nan_to_num(np.power(e1, 2 *gamma))+1))[None, :self.k1]
+        mask = np.nan_to_num(np.square(mim) + np.square(mim))
+        return mask
+        
+    def slanted_matrix(self, e1, e2):
         est_rank = 0
-        for i in range(len(self.mesh2.eigenvalues)):
-                if self.mesh2.eigenvalues[i] - max(self.mesh1.eigenvalues) < 0:
+        for i in range(len(e2)):
+                if e2[i] - max(e1) < 0:
                     est_rank += 1
-        W = np.zeros((self.k1,self.k1));
+        W = np.zeros((self.k2,self.k1));
         
         for i in range(self.k1):
             for j in range(self.k1):
@@ -324,6 +360,102 @@ class CoupledFunctionalMapping:
                 W[i,j] = np.exp(-0.03*np.sqrt(i**2 + j**2))*np.linalg.norm(np.cross(direction, np.array([i, j, 0])-np.array([1, 1, 0])))
         return W
         
+    def get_x0(self, optinit="zeros", descr1_red = 0, descr2_red = 0, mu_LB = 0):
+        """
+        Returns the initial functional map for optimization. not used but could be
+
+        Parameters
+        ------------------------
+        optinit : 'random' | 'identity' | 'zeros' initialization.
+                  In any case, the first column of the functional map is computed by hand
+                  and not modified during optimization
+
+        Output
+        ------------------------
+        """
+        if optinit == 'nocoup': # Linear-system initialization (solution of C1 and C2 if coupling is removed)
+            e1, e2 = self.mesh1.eigenvalues[:self.k1],  self.mesh2.eigenvalues[:self.k2]
+            maxev =  max(np.max(e1), np.max(e2))
+            e1 /= maxev
+            e2 /= maxev
+            C1, C2 = np.zeros((self.k2, self.k1)), np.zeros((self.k1, self.k2))
+            for i in range(self.k2):
+                C1[i] = np.linalg.solve(descr1_red @ descr1_red.T + mu_LB * np.diag(np.square(e1 - e2[i])), descr1_red @ descr2_red[i]) #ev_sqdiff.T[i]
+            for i in range(self.k1):
+                C2[i] = np.linalg.solve(descr2_red @ descr2_red.T + mu_LB * np.diag(np.square(e2 - e1[i])), descr2_red @ descr1_red[i]) 
+        elif optinit == 'identity': # Close-to-identity initialization
+            C1, C2 = np.eye(self.k2, self.k1), np.eye(self.k1, self.k2)
+        else: # Zero initialization
+            C1, C2 = np.zeros((self.k2, self.k1)), np.zeros((self.k1, self.k2))
+
+        return C1, C2
+        
+        
+    def compute_descr_op(self):
+        """
+        Compute the multiplication operators associated with the descriptors
+
+        Output
+        ---------------------------
+        operators : n_descr long list of ((k1,k1),(k2,k2)) operators.
+        """
+        if not self.preprocessed:
+            raise ValueError("Preprocessing must be done before computing the new descriptors")
+
+        pinv1 = self.mesh1.eigenvectors[:, :self.k1].T @ self.mesh1.A  # (k1,n)
+        pinv2 = self.mesh2.eigenvectors[:, :self.k2].T @ self.mesh2.A  # (k2,n)
+
+        list_descr = [
+                      (pinv1@(self.descr1[:, i, None] * self.mesh1.eigenvectors[:, :self.k1]),
+                       pinv2@(self.descr2[:, i, None] * self.mesh2.eigenvectors[:, :self.k2])
+                       )
+                      for i in range(self.descr1.shape[1])
+                      ]
+
+        return list_descr
+
+    def compute_orientation_op(self, reversing=False, normalize=False):
+        """
+        Compute orientation preserving or reversing operators associated to each descriptor.
+
+        Parameters
+        ---------------------------------
+        reversing : whether to return operators associated to orientation inversion instead
+                    of orientation preservation (return the opposite of the second operator)
+        normalize : whether to normalize the gradient on each face. Might improve results
+                    according to the authors
+
+        Output
+        ---------------------------------
+        list_op : (n_descr,) where term i contains (D1,D2) respectively of size (k1,k1) and
+                  (k2,k2) which represent operators supposed to commute.
+        """
+        n_descr = self.descr1.shape[1]
+
+        # Precompute the inverse of the eigenvectors matrix
+        pinv1 = self.mesh1.eigenvectors[:, :self.k1].T @ self.mesh1.A  # (k1,n)
+        pinv2 = self.mesh2.eigenvectors[:, :self.k2].T @ self.mesh2.A  # (k2,n)
+
+        # Compute the gradient of each descriptor
+        grads1 = [self.mesh1.gradient(self.descr1[:, i], normalize=normalize) for i in range(n_descr)]
+        grads2 = [self.mesh2.gradient(self.descr2[:, i], normalize=normalize) for i in range(n_descr)]
+
+        # Compute the operators in reduced basis
+        can_op1 = [pinv1 @ self.mesh1.orientation_op(gradf) @ self.mesh1.eigenvectors[:, :self.k1]
+                   for gradf in grads1]
+
+        if reversing:
+            can_op2 = [- pinv2 @ self.mesh2.orientation_op(gradf) @ self.mesh2.eigenvectors[:, :self.k2]
+                       for gradf in grads2]
+        else:
+            can_op2 = [pinv2 @ self.mesh2.orientation_op(gradf) @ self.mesh2.eigenvectors[:, :self.k2]
+                       for gradf in grads2]
+
+        list_op = list(zip(can_op1, can_op2))
+
+        return list_op
+    
+
     def project(self, func, k=None, mesh_ind=1):
         """
         Projects a function on the LB basis
@@ -346,40 +478,9 @@ class CoupledFunctionalMapping:
             return self.mesh2.project(func, k=k)
         else:
             raise ValueError(f'Only indices 1 or 2 are accepted, not {mesh_ind}')
-            
-"""
-       
-    def get_x0(self, optinit="zeros"):
-        
-        Returns the initial functional map for optimization. not used but could be
-
-        Parameters
-        ------------------------
-        optinit : 'random' | 'identity' | 'zeros' initialization.
-                  In any case, the first column of the functional map is computed by hand
-                  and not modified during optimization
-
-        Output
-        ------------------------
-        x0 : corresponding initial vector
-        
-        if optinit == 'random':
-            x0 = np.random.random((self.k2, self.k1))
-        elif optinit == 'identity':
-            x0 = np.eye(self.k2, self.k1)
-        else:
-            x0 = np.zeros((self.k2, self.k1))
-
-        # Sets the equivalence between the constant functions
-        ev_sign = np.sign(self.mesh1.eigenvectors[0,0]*self.mesh2.eigenvectors[0,0])
-        area_ratio = np.sqrt(self.mesh2.area/self.mesh1.area)
-
-        x0[:,0] = np.zeros(self.k2)
-        x0[0,0] = ev_sign * area_ratio
-
-        return x0
-
+                  
     
+"""    
 
     def decode(self, encoded_func, mesh_ind=2):
         
