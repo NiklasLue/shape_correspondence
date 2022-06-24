@@ -1,11 +1,14 @@
 import copy
+import yaml
 
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b, fmin_cg, minimize
+import torch
 
 from .base_functions import loss, loss_grad
 import pyFM.signatures as sg
 import pyFM.spectral as spectral
+from dpfm.model import DPFMNet
 
 
 class CoupledFunctionalMapping:
@@ -28,7 +31,7 @@ class CoupledFunctionalMapping:
     C1, C2  : (k2,k1) (k1,k2) current coupled functional maps
     p2p     : (n2,) point to point map associated to the current functional map
     """
-    def __init__(self, mesh1, mesh2):
+    def __init__(self, mesh1, mesh2, shape1=None, shape2=None):
 
         self.mesh1 = copy.deepcopy(mesh1)
         self.mesh2 = copy.deepcopy(mesh2)
@@ -50,6 +53,10 @@ class CoupledFunctionalMapping:
         # AREA AND CONFORMAL SHAPE DIFFERENCE OPERATORS
         #self.SD_a = None
         #self.SD_c = None
+
+        # SHAPES FROM DATALOADERS (only needed for descr_type='DPFM')
+        self.shape1 = shape1
+        self.shape2 = shape2
 
         self._k1, self._k2,  = None, None
 
@@ -173,7 +180,7 @@ class CoupledFunctionalMapping:
         return lmks1, lmks2
 
     def preprocess(self, n_ev=(50,50), n_descr=100, descr_type='WKS', landmarks=None, subsample_step=1, k_process=None,
-                           verbose=False):
+                           verbose=False, **kwargs):
         """
         Saves the information about the Laplacian mesh for opt
 
@@ -186,6 +193,7 @@ class CoupledFunctionalMapping:
                          If (p,1) uses the same indices for both.
         subsample_step : int - step with which to subsample the descriptors.
         """
+        # TODO: What is this for???
         self.k1, self.k2 = n_ev
         self.k2, self.k1 = n_ev
 
@@ -230,6 +238,24 @@ class CoupledFunctionalMapping:
                 self.descr1 = np.hstack([self.descr1, lm_descr1])  # (N1, (p+1)*n_descr)
                 self.descr2 = np.hstack([self.descr2, lm_descr2])  # (N2, (p+1)*n_descr)
 
+        elif descr_type == "DPFM":
+            if torch.cuda.is_available() and cfg["misc"]["cuda"]:
+                device = torch.device(f'cuda:{cfg["misc"]["device"]}')
+            else:
+                device = torch.device("cpu")
+            cfg = yaml.safe_load(open(f"dpfm/config/{kwargs['config']}.yaml", "r"))
+            dpfm_net = DPFMNet(cfg).to(device)
+            dpfm_net.load_state_dict(torch.load(kwargs["model_path"], map_location=device))
+            dpfm_net.eval()
+
+            batch = {'shape1': self.shape1, 'shape2': self.shape2}
+            C, _, _, self.descr1, self.descr2 = dpfm_net(batch)
+
+            self.descr1 = self.descr1.detach().cpu().numpy().squeeze(0)
+            self.descr2 = self.descr2.detach().cpu().numpy().squeeze(0)
+
+            self.k1, self.k2 = C.squeeze(0).shape
+            
         else:
             raise ValueError(f'Descriptor type "{descr_type}" not implemented')
 
@@ -299,7 +325,7 @@ class CoupledFunctionalMapping:
             orient_op = self.compute_orientation_op(reversing=orient_reversing)  # (n_descr,)
           
         # Compute mask for regularization
-        mask = self.get_mask(optmask)
+        mask = self.get_mask(optmask=optmask)
 
         # Arguments for the optimization problem
         args = (descr1_red, descr2_red, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient) # to add weight matrix W
@@ -319,14 +345,17 @@ class CoupledFunctionalMapping:
         nit = res.nit
         print('nit:' + str(nit))
         
-    def get_mask(self, optmask = 'lbo'):
-        e1, e2 = self.mesh1.eigenvalues[:self.k1],  self.mesh2.eigenvalues[:self.k2]
+    def get_mask(self, optmask = 'lbo', evals1=None, evals2=None):
+        ev1 = evals1 if evals1 is not None else self.mesh1.eigenvalues
+        ev2 = evals2 if evals2 is not None else self.mesh2.eigenvalues
+
+        e1, e2 = ev1[:self.k1],  ev2[:self.k2]
         if optmask == 'resolvent': # Resolvent mask (Commutativity with resolvent of LBO)
             mask = self.resolvent_matrix(e1,e2)
         elif optmask == 'slanted': # Slanted mask
             mask = self.slanted_matrix(e1, e2)
         else: # Squared difference of eigenvalues (LBO commutativity)
-            mask = np.square(self.mesh1.eigenvalues[None, :self.k1] - self.mesh2.eigenvalues[:self.k2, None])
+            mask = np.square(e1[None, :self.k1] - e2[:self.k2, None])
             mask /= mask.sum()
         
         return mask
@@ -360,7 +389,7 @@ class CoupledFunctionalMapping:
                 W[i,j] = np.exp(-0.03*np.sqrt(i**2 + j**2))*np.linalg.norm(np.cross(direction, np.array([i, j, 0])-np.array([1, 1, 0])))
         return W
         
-    def get_x0(self, optinit="zeros", descr1_red = 0, descr2_red = 0, mu_LB = 0):
+    def get_x0(self, evals1=None, evals2=None, optinit="zeros", descr1_red = 0, descr2_red = 0, mu_LB = 0):
         """
         Returns the initial functional map for optimization. not used but could be
 
@@ -373,8 +402,11 @@ class CoupledFunctionalMapping:
         Output
         ------------------------
         """
+        ev1 = evals1 if evals1 is not None else self.mesh1.eigenvalues
+        ev2 = evals2 if evals2 is not None else self.mesh2.eigenvalues
+
         if optinit == 'nocoup': # Linear-system initialization (solution of C1 and C2 if coupling is removed)
-            e1, e2 = self.mesh1.eigenvalues[:self.k1],  self.mesh2.eigenvalues[:self.k2]
+            e1, e2 = ev1[:self.k1],  ev2[:self.k2]
             maxev =  max(np.max(e1), np.max(e2))
             e1 /= maxev
             e2 /= maxev
@@ -391,7 +423,7 @@ class CoupledFunctionalMapping:
         return C1, C2
         
         
-    def compute_descr_op(self):
+    def compute_descr_op(self, evecs1=None, evecs2=None, descr1=None, descr2=None):
         """
         Compute the multiplication operators associated with the descriptors
 
@@ -402,14 +434,20 @@ class CoupledFunctionalMapping:
         if not self.preprocessed:
             raise ValueError("Preprocessing must be done before computing the new descriptors")
 
-        pinv1 = self.mesh1.eigenvectors[:, :self.k1].T @ self.mesh1.A  # (k1,n)
-        pinv2 = self.mesh2.eigenvectors[:, :self.k2].T @ self.mesh2.A  # (k2,n)
+        e1 = evecs1 if evecs1 is not None else self.mesh1.eigenvectors
+        e2 = evecs2 if evecs2 is not None else self.mesh2.eigenvectors
+
+        d1 = descr1 if descr1 is not None else self.descr1
+        d2 = descr2 if descr2 is not None else self.descr2
+
+        pinv1 = e1[:, :self.k1].T @ self.mesh1.A  # (k1,n)
+        pinv2 = e2[:, :self.k2].T @ self.mesh2.A  # (k2,n)
 
         list_descr = [
-                      (pinv1@(self.descr1[:, i, None] * self.mesh1.eigenvectors[:, :self.k1]),
-                       pinv2@(self.descr2[:, i, None] * self.mesh2.eigenvectors[:, :self.k2])
+                      (pinv1@(d1[:, i, None] * e1[:, :self.k1]),
+                       pinv2@(d2[:, i, None] * e2[:, :self.k2])
                        )
-                      for i in range(self.descr1.shape[1])
+                      for i in range(d1.shape[1])
                       ]
 
         return list_descr
@@ -479,6 +517,72 @@ class CoupledFunctionalMapping:
         else:
             raise ValueError(f'Only indices 1 or 2 are accepted, not {mesh_ind}')
                   
+    def fit_pre_comp(self, descr1_red, descr2_red, evecs1, evecs2, evals1, evals2, mu_pres = 1, mu_coup = 1e-1, mu_mask = 0, mu_des = 0, mu_orient = 0, optinit='zeros', optmask = 'lbo', verbose=False):
+        """
+        Solves the functional map optimization problem :
+
+        min_C1,C2 ||C1@A - B|| + ||A - C2 @ B|| +  mu_coup * ||C1 @ C2 - I||^2)
+              + mu_reg * (sum_i ||Ci * W||^2)
+
+        with A and B descriptors, I identity matrix (k2,k2), W weight matrix see D. Eynard, E. Rodola, K. Glashoff, and M. M. Bronstein, 
+        Coupled functional maps, in 2016 Fourth International Conference on 3D Vision (3DV), IEEE, pp. 399–407.
+
+        Parameters
+        -------------------------------
+        w_reg            : weight matrix
+      
+        optinit          : 'zeros' (| 'nocoup' | 'identity' |) initialization.
+                           
+        optmask          : 'lbo' (| 'resolvent' | 'slanted' |) mask.
+        """
+        if optinit not in ['nocoup', 'identity', 'zeros']:
+            raise ValueError(f"optinit arg should be 'nocoup', 'identity' or 'zeros', not {optinit}")
+            
+        if optmask not in ['lbo', 'resolvent', 'slanted']:
+            raise ValueError(f"optinit arg should be 'lbo', 'resolvent', 'slanted', not {optinit}")    
+
+        self.k1, self.k2 = descr1_red.shape[0], descr2_red.shape[0]
+
+         # Compute multiplicative operators associated to each descriptor
+        list_descr = []
+        if mu_des > 0:
+            if verbose:
+                print('Computing commutativity operators')
+            list_descr = self.compute_descr_op(evecs1=evecs1, evecs2=evecs2, descr1=descr1_red, descr2=descr2_red)  # (n_descr, ((k1,k1), (k2,k2)) )
+
+        # Compute orientation operators associated to each descriptor
+        # TODO: implement for non precomputed meshes
+        orient_op = []
+        if mu_orient > 0:
+            if verbose:
+                print('Computing orientation operators')
+            orient_op = self.compute_orientation_op(reversing=orient_reversing)  # (n_descr,)
+          
+        # Compute mask for regularization
+        if verbose:
+            print('Computing mask')
+        mask = self.get_mask(optmask=optmask, evals1=evals1, evals2=evals2)
+
+        # Arguments for the optimization problem
+        args = (descr1_red, descr2_red, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient) # to add weight matrix W
+        
+        # Initialization of C1 and C2
+        C1, C2 = self.get_x0(optinit=optinit, descr1_red=descr1_red, descr2_red=descr2_red, mu_LB=mu_mask, evals1=evals1, evals2=evals2)         
+        
+        # Optimization
+        # To be define l_bfgs_b
+        #res = fmin_l_bfgs_b(loss, np.concatenate((C1.ravel(), C2.ravel())), fprime=loss_grad, args=args)
+        res = minimize(loss, np.concatenate((C1.ravel(), C2.ravel())), method = 'L-BFGS-B', jac=loss_grad, args=args, options={'maxiter':100})
+        
+        #A = res[0][:self.k1*self.k2]
+        sol = res.x
+        C1sol, C2sol = sol[0:len(sol)//2], sol[len(sol)//2 : len(sol)]
+        self.C1, self.C2 = np.reshape(C1sol, (self.k2,self.k1)), np.reshape(C2sol, (self.k1,self.k2))
+        nit = res.nit
+        if verbose:
+            print('nit:' + str(nit))
+
+        return self.C1, self.C2
     
 """    
 
