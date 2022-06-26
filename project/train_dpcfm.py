@@ -4,11 +4,17 @@ import yaml
 
 import tqdm
 import torch
+
 from torch.utils.tensorboard import SummaryWriter
 
-from dpfm.model import DPCFMNet
-from dpfm.utils import DPCFMLoss, augment_batch
+
+from project.dpcfm_model import DPCFMNet
+from  project.dpcfm_utils import DPCFMLoss
+
+from dpfm.utils import augment_batch
+
 from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
+
 
 def train_net(cfg):
     """

@@ -8,7 +8,7 @@ import torch
 import tqdm
 
 from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
-from dpfm.model import DPCFMNet
+from project.dpcfm_model import DPCFMNet
 from pyFM.spectral import FM_to_p2p
 from pyFM.eval.evaluate import accuracy
 

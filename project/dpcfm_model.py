@@ -1,15 +1,18 @@
-
+import torch
+from torch import nn
 
 from diffusion_net.layers import DiffusionNet
 
 from dpfm.model import CrossAttentionRefinementNet, RegularizedFMNet, DPFMNet
 
 
-class DPCFMNet(DPFMNet):
+
+
+class DPCFMNet(nn.Module):
     """Compute the functional map matrix representation."""
 
     def __init__(self, cfg):
-        super().__init__(cfg)
+        super().__init__()
 
         # feature extractor
         self.feature_extractor = DiffusionNet(
