@@ -4,10 +4,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from dpfm.utils import FrobeniusLoss, WeightedBCELoss, NCESoftmaxLoss
+from dpfm.utils import DPFMLoss, FrobeniusLoss, WeightedBCELoss, NCESoftmaxLoss
 
 
-class DPCFMLoss(nn.Module):
+class DPCFMLoss(DPFMLoss):
     def __init__(self, w_fmap=1, w_acc=1, w_nce=0.1, w_coup = 0.1, nce_t=0.07, nce_num_pairs=4096):
         super().__init__()
 

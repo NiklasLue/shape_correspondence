@@ -8,11 +8,11 @@ from dpfm.model import CrossAttentionRefinementNet, RegularizedFMNet, DPFMNet
 
 
 
-class DPCFMNet(nn.Module):
+class DPCFMNet(DPFMNet):
     """Compute the functional map matrix representation."""
 
     def __init__(self, cfg):
-        super().__init__()
+        super().__init__(cfg)
 
         # feature extractor
         self.feature_extractor = DiffusionNet(
