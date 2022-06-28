@@ -147,9 +147,9 @@ def train_net(cfg, n_samples=None):
             iterations += 1
 
         avg_val_loss = sum(val_loss) / len(val_loss)
-        avg_val_fmap_loss = sum(fmap_loss) / len(fmap_loss)
-        avg_val_overlap_loss = sum(overlap_loss) / len(overlap_loss)
-        avg_val_nce_loss = sum(nce_loss) / len(nce_loss)
+        avg_val_fmap_loss = sum(val_fmap_loss) / len(val_fmap_loss)
+        avg_val_overlap_loss = sum(val_overlap_loss) / len(val_overlap_loss)
+        avg_val_nce_loss = sum(val_nce_loss) / len(val_nce_loss)
 
         # print log every epoch instead of defined by iteration
         # if iterations % cfg["misc"]["log_interval"] == 0:
