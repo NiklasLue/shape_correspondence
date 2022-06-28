@@ -45,4 +45,4 @@ class DPCFMLoss(DPFMLoss):
         loss += coup_loss
         
 
-        return loss
+        return loss, fmap_loss, acc_loss, nce_loss
