@@ -76,6 +76,9 @@ def train_net(cfg, n_samples=None):
         ### training step
         # train_loss = 0.0
         train_loss = []
+        fmap_loss = []
+        overlap_loss = []
+        nce_loss = []
         for i, data in enumerate(train_loader):
             data = shape_to_device(data, device)
 
@@ -89,7 +92,7 @@ def train_net(cfg, n_samples=None):
 
             # do iteration
             C_pred, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpfm_net(data)
-            out = criterion(C_gt, C_pred, map21, use_feat1, use_feat2,
+            out, fmap, overlap, nce = criterion(C_gt, C_pred, map21, use_feat1, use_feat2,
                              overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
             
             out.backward()
@@ -97,15 +100,24 @@ def train_net(cfg, n_samples=None):
             optimizer.step()
             optimizer.zero_grad()
             train_loss.append(out.item())
+            fmap_loss.append(fmap.item())
+            overlap_loss.append(overlap.item())
+            nce_loss.append(nce.item())
             # train_loss += train_loss.item()
 
             iterations += 1
         
         avg_train_loss = sum(train_loss) / len(train_loss)
+        avg_fmap_loss = sum(fmap_loss) / len(fmap_loss)
+        avg_overlap_loss = sum(overlap_loss) / len(overlap_loss)
+        avg_nce_loss = sum(nce_loss) / len(nce_loss)
             
         ### validation step  
         #TODO: early stopping
         val_loss = []
+        val_fmap_loss = []
+        val_overlap_loss = []
+        val_nce_loss = []
         # val_loss = 0.0
         dpfm_net.eval()     # Optional when not using Model Specific layer
         for i, data in enumerate(valid_loader):
@@ -122,16 +134,22 @@ def train_net(cfg, n_samples=None):
 
             #calculate validation loss after each epoch
             C_pred, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpfm_net(data)
-            out = criterion(C_gt, C_pred, map21, use_feat1, use_feat2,
+            out, fmap, overlap, nce = criterion(C_gt, C_pred, map21, use_feat1, use_feat2,
                             overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
 
             val_loss.append(out.item())
+            val_fmap_loss.append(fmap.item())
+            val_overlap_loss.append(overlap.item())
+            val_nce_loss.append(nce.item())
             # val_loss += val_loss.item() 
 
             # also add validation iterations to iterations
             iterations += 1
 
         avg_val_loss = sum(val_loss) / len(val_loss)
+        avg_val_fmap_loss = sum(fmap_loss) / len(fmap_loss)
+        avg_val_overlap_loss = sum(overlap_loss) / len(overlap_loss)
+        avg_val_nce_loss = sum(nce_loss) / len(nce_loss)
 
         # print log every epoch instead of defined by iteration
         # if iterations % cfg["misc"]["log_interval"] == 0:
@@ -143,6 +161,15 @@ def train_net(cfg, n_samples=None):
 
         writer.add_scalar("Loss/val", avg_val_loss, epoch)
         writer.add_scalar("Loss/train", avg_train_loss, epoch)
+
+        writer.add_scalar("FMap Loss/val", avg_val_fmap_loss, epoch)
+        writer.add_scalar("FMap Loss/train", avg_fmap_loss, epoch)
+
+        writer.add_scalar("Overlap Loss/val", avg_val_overlap_loss, epoch)
+        writer.add_scalar("Overlap Loss/train", avg_overlap_loss, epoch)
+
+        writer.add_scalar("NCE Loss/val", avg_val_nce_loss, epoch)
+        writer.add_scalar("NCE Loss/train", avg_nce_loss, epoch)
 
         # save model
         if (epoch + 1) % cfg["misc"]["checkpoint_interval"] == 0:
