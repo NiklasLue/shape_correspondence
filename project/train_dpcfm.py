@@ -84,7 +84,6 @@ def train_net(cfg):
         train_loss = []
         for i, data in enumerate(train_loader):
             data = shape_to_device(data, device)
-
             # data augmentation
             data = augment_batch(data, rot_x=30, rot_y=30, rot_z=60, std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
 
@@ -98,7 +97,7 @@ def train_net(cfg):
             # do iteration
             C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
             out = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2,
-                             overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
+                            overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
             
             out.backward()
             optimizer.step()
