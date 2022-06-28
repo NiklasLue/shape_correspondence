@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import itertools
+import random
 
 import numpy as np
 import potpourri3d as pp3d
@@ -468,7 +469,7 @@ class Tosca(Dataset):
     """
     Download dataset from https://vision.in.tum.de/data/datasets/partial
     """
-    def __init__(self, path, name="cuts", selected=False, use_adj=False, k_eig=128, n_fmap=30, op_cache_dir=None, use_cache=True, verbose=True):
+    def __init__(self, path, name="cuts", selected=False, use_adj=False, k_eig=128, n_fmap=30, n_samples=None, op_cache_dir=None, use_cache=True, verbose=True):
         super().__init__(path, use_adj=use_adj)
 
         self.k_eig = k_eig
@@ -500,6 +501,10 @@ class Tosca(Dataset):
                     self.sample_list,
                 ) = torch.load(load_cache)
                 self.combinations = list(self.corres_dict.keys())
+
+                if n_samples is not None:
+                    self.combinations = random.sample(self.combinations, n_samples)
+
                 return
             if verbose:
                 print("  --> dataset not in cache, repopulating")
@@ -608,6 +613,9 @@ class Tosca(Dataset):
 
         # set combinations
         self.combinations = list(self.corres_dict.keys())
+
+        if n_samples is not None:
+            self.combinations = random.sample(self.combinations, n_samples)
 
         # update used_shapes
         self.used_shapes = self.used_shapes + self.null_shapes

@@ -10,7 +10,7 @@ from dpfm.model import DPFMNet
 from dpfm.utils import DPFMLoss, augment_batch
 from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
 
-def train_net(cfg):
+def train_net(cfg, n_samples=None):
     """
     Rewritten train_net() function from DPFM to take more data classes
     """
@@ -37,7 +37,7 @@ def train_net(cfg):
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=None, shuffle=True)
     elif cfg["dataset"]["name"] == "tosca":
         train_dataset = Tosca(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
-                                            n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir, use_adj=True)
+                                            n_fmap=cfg["fmap"]["n_fmap"], n_samples=n_samples, use_cache=True, op_cache_dir=op_cache_dir, use_adj=True)
         
         #TODO set train and validation ratio
         train_size = int(0.8 * len(train_dataset))
@@ -58,7 +58,6 @@ def train_net(cfg):
     dpfm_net = DPFMNet(cfg).to(device)
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
-    torch.nn.utils.clip_grad_norm_(dpfm_net.parameters(), 1)
     criterion = DPFMLoss(w_fmap=cfg["loss"]["w_fmap"], w_acc=cfg["loss"]["w_acc"], w_nce=cfg["loss"]["w_nce"],
                          nce_t=cfg["loss"]["nce_t"], nce_num_pairs=cfg["loss"]["nce_num_pairs"]).to(device)
 
@@ -94,6 +93,7 @@ def train_net(cfg):
                              overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
             
             out.backward()
+            torch.nn.utils.clip_grad_norm_(dpfm_net.parameters(), 1)
             optimizer.step()
             optimizer.zero_grad()
             train_loss.append(out.item())
