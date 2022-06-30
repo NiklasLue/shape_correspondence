@@ -84,7 +84,7 @@ class DPFMLoss(nn.Module):
         nce_loss = self.nce_softmax_loss(feat1, feat2, map21) * self.w_nce
         loss += nce_loss
 
-        return loss
+        return loss, fmap_loss, acc_loss, nce_loss
 
 
 def get_mask(evals1, evals2, gamma=0.5, device="cpu"):

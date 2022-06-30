@@ -2,7 +2,6 @@ import argparse
 from pickle import TRUE
 import yaml
 import os
-import statistics
 
 import torch
 import tqdm
@@ -132,7 +131,7 @@ def eval_net(cfg, model_path, predictions_name, mode="FM"):
         to_save_list.append(log_obj)
         acc_list.append(accuracy(p2p_pred, p2p_gt.cpu(), mesh1.get_geodesic(), sqrt_area=mesh1.sqrtarea))
 
-    print(f"Mean normalized geodesic error: {statistics.fmean(acc_list)}")
+    print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
     torch.save(to_save_list, predictions_name)
 
 

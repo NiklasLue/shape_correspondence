@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import itertools
+import random
 
 import numpy as np
 import potpourri3d as pp3d
@@ -291,7 +292,7 @@ class ShrecPartialDataset(Dataset):
 
         # Load the meshes & labels
         # define files and order
-        self.used_shapes = sorted([x.stem for x in (Path(root_dir) / "shapes").iterdir() if name in x.stem])
+        self.used_shapes = sorted([x.stem for x in (Path(root_dir) / "shapes").iterdir() if name in x.stem and ".DS_Store" not in x.stem])
         corres_path = Path(root_dir) / "maps"
         all_combs = [x.stem for x in corres_path.iterdir() if name in x.stem]
         self.corres_dict = {}
@@ -411,6 +412,8 @@ class ShrecPartialDataset(Dataset):
     def __getitem__(self, idx):
         idx1, idx2 = self.combinations[idx]
 
+        meshes = self.load_trimesh(idx)
+
         shape1 = {
             "xyz": self.verts_list[idx1],
             "faces": self.faces_list[idx1],
@@ -423,6 +426,7 @@ class ShrecPartialDataset(Dataset):
             "gradY": self.gradY_list[idx1],
             "name": self.used_shapes[idx1],
             "sample_idx": self.sample_list[idx1],
+            "mesh": meshes[0]
         }
 
         shape2 = {
@@ -437,6 +441,7 @@ class ShrecPartialDataset(Dataset):
             "gradY": self.gradY_list[idx2],
             "name": self.used_shapes[idx2],
             "sample_idx": self.sample_list[idx2],
+            "mesh": meshes[1]
         }
 
         # Compute fmap
@@ -468,7 +473,7 @@ class Tosca(Dataset):
     """
     Download dataset from https://vision.in.tum.de/data/datasets/partial
     """
-    def __init__(self, path, name="cuts", selected=False, use_adj=False, k_eig=128, n_fmap=30, op_cache_dir=None, use_cache=True, verbose=True):
+    def __init__(self, path, name="cuts", selected=False, use_adj=False, k_eig=128, n_fmap=30, n_samples=None, op_cache_dir=None, use_cache=True, verbose=True):
         super().__init__(path, use_adj=use_adj)
 
         self.k_eig = k_eig
@@ -500,6 +505,10 @@ class Tosca(Dataset):
                     self.sample_list,
                 ) = torch.load(load_cache)
                 self.combinations = list(self.corres_dict.keys())
+
+                if n_samples is not None:
+                    self.combinations = random.sample(self.combinations, n_samples)
+
                 return
             if verbose:
                 print("  --> dataset not in cache, repopulating")
@@ -608,6 +617,9 @@ class Tosca(Dataset):
 
         # set combinations
         self.combinations = list(self.corres_dict.keys())
+
+        if n_samples is not None:
+            self.combinations = random.sample(self.combinations, n_samples)
 
         # update used_shapes
         self.used_shapes = self.used_shapes + self.null_shapes
