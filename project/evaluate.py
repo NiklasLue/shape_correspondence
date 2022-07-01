@@ -75,21 +75,21 @@ class EvaluateModel:
                 self.acc_zo.append(accuracy(p2p_21_zo, gt_p2p, A_geod, sqrt_area=np.sqrt(mesh1.area), return_all=accum_dist))
 
         if self.refine:
-            print(f'Mean accuracy results\n'
-                f'\tBasic FM : {1e3*np.array(self.acc_base).mean():.2f}\n'
-                f'\tICP refined : {1e3*np.array(self.acc_icp).mean():.2f}\n'
-                f'\tZoomOut refined : {1e3*np.array(self.acc_zo).mean():.2f}\n')
+            print(f'Mean accuracy results (*100)\n'
+                f'\tBasic FM : {1e2*np.array(self.acc_base).mean():.2f}\n'
+                f'\tICP refined : {1e2*np.array(self.acc_icp).mean():.2f}\n'
+                f'\tZoomOut refined : {1e2*np.array(self.acc_zo).mean():.2f}\n')
 
-            print(f'Standard deviation of accuracy results\n'
-                f'\tBasic FM : {1e3*np.array(self.acc_base).std():.2f}\n'
-                f'\tICP refined : {1e3*np.array(self.acc_icp).std():.2f}\n'
-                f'\tZoomOut refined : {1e3*np.array(self.acc_zo).std():.2f}\n')
+            print(f'Standard deviation of accuracy results (*100)\n'
+                f'\tBasic FM : {1e2*np.array(self.acc_base).std():.2f}\n'
+                f'\tICP refined : {1e2*np.array(self.acc_icp).std():.2f}\n'
+                f'\tZoomOut refined : {1e2*np.array(self.acc_zo).std():.2f}\n')
         else:
-            print(f'Mean accuracy results\n'
-                f'\tBasic FM : {1e3*np.array(self.acc_base).mean():.2f}\n')
+            print(f'Mean accuracy results (*100)\n'
+                f'\tBasic FM : {1e2*np.array(self.acc_base).mean():.2f}\n')
 
-            print(f'Standard deviation of accuracy results\n'
-                f'\tBasic FM : {1e3*np.array(self.acc_base).std():.2f}\n')
+            print(f'Standard deviation of accuracy results (*100)\n'
+                f'\tBasic FM : {1e2*np.array(self.acc_base).std():.2f}\n')
 
         if accum_dist:
             X2 = np.sort(dist_list)
