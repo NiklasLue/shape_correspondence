@@ -8,9 +8,11 @@ import tqdm
 
 from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
 from dpfm.model import DPFMNet
+from pyFM.refine import icp
 from pyFM.spectral import FM_to_p2p
 from pyFM.eval.evaluate import accuracy
 from project.cfunctional import CoupledFunctionalMapping
+from project.cfunctional_dpfm import CoupledFunctionalMappingDPFM
 
 
 def FM_batch_eval(batch_data, net, shape1, shape2):
@@ -37,43 +39,14 @@ def FM_batch_eval(batch_data, net, shape1, shape2):
 
     return p2p_pred, log_obj
 
-def CFM_batch_eval(batch_data, net, shape1, shape2):
-    """
-    Function evaluating a batch of shapes with the Coupled Functional Map Framework
-    batch_data: A batch of data from a PyTorch dataloader
-    net: instance of DPFMNet class
-    shape1, shape2: shape objects given by a data class in datasets.py
-    """
-    # initialized variables
-    C_gt = batch_data["C_gt"].unsqueeze(0)
-    gt_partiality_mask12, gt_partiality_mask21 = batch_data["gt_partiality_mask12"], batch_data["gt_partiality_mask21"]
 
-    # calculate predicted FM and P2P map
-    C_pred, overlap_score12, overlap_score21, use_feat1, use_feat2 = net(batch_data)
-
-    _, k1, k2 = C_pred.shape
-    
-    print("Initializing CFM framework...")
-    cfm = CoupledFunctionalMapping(shape1["mesh"], shape2["mesh"])
-    print("Start calculation of CFM")
-    C1, C2 = cfm.fit_pre_comp(use_feat1.detach().numpy().squeeze(0), use_feat2.detach().numpy().squeeze(0), shape1["evecs"].detach().numpy(), shape2["evecs"].detach().numpy(), shape1["evals"].detach().numpy(), shape2["evals"].detach().numpy(), verbose=True)
-    print("calc FM done")
-    p2p_pred = FM_to_p2p(C1.detach().cpu().squeeze(0), shape1["evecs"][:, :k1].cpu(), shape2["evecs"][:, :k2].cpu(), use_adj=False, use_ANN=False, n_jobs=1)
-    print("calc p2p done")
-
-    # create object to append to to_save_list
-    name1, name2 = batch_data["shape1"]["name"], batch_data["shape2"]["name"]
-    log_obj = (name1, name2, C1.detach().cpu().squeeze(0), C_gt.detach().cpu().squeeze(0),
-                            gt_partiality_mask12.detach().cpu().squeeze(0), gt_partiality_mask21.detach().cpu().squeeze(0),
-                            p2p_pred, batch_data["map21"])
-
-    return p2p_pred, log_obj
-
-
-def eval_net(cfg, model_path, predictions_name, mode="FM"):
+def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_dist=False, mode="FM"):
     """
     Rewritten eval_net() function from DPFM
     """
+    #TODO: tidy up creation of output, depending on the return argumentss
+    #TODO: create option not to calculate any geodesic distances, as this calculation takes the most amount of time
+    
     if torch.cuda.is_available() and cfg["misc"]["cuda"]:
         device = torch.device(f'cuda:{cfg["misc"]["device"]}')
     else:
@@ -104,9 +77,16 @@ def eval_net(cfg, model_path, predictions_name, mode="FM"):
     dpfm_net.load_state_dict(torch.load(model_path, map_location=device))
     dpfm_net.eval()
 
+    if mode=="CFM":
+        cfm = CoupledFunctionalMappingDPFM(dpfm_net)
+
     # initialize logging lists
     to_save_list = []
     acc_list = []
+    if return_pred_p2p:
+        pred_p2p_list = []
+    if return_dist:
+        distances = []
 
     # enumerate through batches of data
     for i, data in enumerate(tqdm.tqdm(test_loader)):
@@ -115,24 +95,46 @@ def eval_net(cfg, model_path, predictions_name, mode="FM"):
 
         # prepare iteration data
         shape1, shape2, p2p_gt = data["shape1"], data["shape2"], data["map21"]
-        mesh1, mesh2 = shape1["mesh"], shape2["mesh"]
 
         # do iteration
         if mode=="FM":
             p2p_pred, log_obj = FM_batch_eval(data, dpfm_net, shape1, shape2)
-            return p2p_pred, data, log_obj
         elif mode=="CFM":
-            p2p_pred, log_obj = CFM_batch_eval(data, dpfm_net, shape1, shape2)
+            C1, C2 = cfm.fit(shape1, shape2, mu_mask=10, mu_des=1)
+            p2p_pred = cfm.get_p2p_map(n_jobs=-1)
+            log_obj = (data["shape1"]["name"], data["shape2"]["name"], 
+                        C1, data["C_gt"].detach().cpu().unsqueeze(0),
+                        data["gt_partiality_mask12"].detach().cpu().squeeze(0), data["gt_partiality_mask21"].detach().cpu().squeeze(0),
+                        p2p_pred, data["map21"])
         else:
             message = f"mode '{mode}' not supported!"
             raise ValueError(message)
 
-        # log results
+        if return_pred_p2p:
+            pred_p2p_list.append({'p2p': p2p_pred, 'mesh1': shape1["mesh"], 'mesh2': shape2["mesh"]})
+
         to_save_list.append(log_obj)
-        acc_list.append(accuracy(p2p_pred, p2p_gt.cpu(), mesh1.get_geodesic(), sqrt_area=mesh1.sqrtarea))
+
+        mesh1_geod = shape1["mesh"].get_geodesic()
+        mesh1_sqrt_area = shape1["mesh"].sqrtarea
+
+        if return_dist:
+
+            mean_dist, dist = accuracy(p2p_pred, p2p_gt.cpu(), mesh1_geod, sqrt_area=mesh1_sqrt_area, return_all=True)
+            distances.extend(dist)
+            acc_list.append(mean_dist)
+        else:    
+            acc_list.append(accuracy(p2p_pred, p2p_gt.cpu(), mesh1_geod, sqrt_area=mesh1_sqrt_area))
 
     print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
     torch.save(to_save_list, predictions_name)
+
+    if return_pred_p2p and return_dist:
+        return pred_p2p_list, distances
+    elif return_pred_p2p:
+        return pred_p2p_list
+    elif return_dist:
+        return distances
 
 
 if __name__ == "__main__":
