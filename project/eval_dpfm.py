@@ -40,7 +40,7 @@ def FM_batch_eval(batch_data, net, shape1, shape2):
     return p2p_pred, log_obj
 
 
-def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_dist=False, mode="FM"):
+def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_dist=False, mode="FM", n_samples=None):
     """
     Rewritten eval_net() function from DPFM
     """
@@ -65,7 +65,7 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
     elif cfg["dataset"]["name"] == "tosca":
         # TODO: adjust use_adj, so that it matches with pyFM
         test_dataset = Tosca(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
-                                           n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir, use_adj=True)
+                                           n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir, use_adj=True, n_samples=n_samples)
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=None)
     elif cfg["dataset"]["name"] == "faust":
         raise NotImplementedError("FAUST support will come soon!")
@@ -135,7 +135,6 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
         return pred_p2p_list
     elif return_dist:
         return distances
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Launch the training of DPFM model.")
