@@ -237,7 +237,8 @@ class CoupledFunctionalMappingDPFM:
 
         e1, e2 = self.shape1["evals"][:self.k1],  self.shape2["evals"][:self.k2]
         if optmask == 'resolvent': # Resolvent mask (Commutativity with resolvent of LBO)
-            mask = self.resolvent_matrix(e1,e2)
+            #TODO: find a good value for gammaa
+            mask = self.resolvent_matrix(e1, e2, gamma=0.8)
         elif optmask == 'slanted': # Slanted mask
             mask = self.slanted_matrix(e1, e2)
         elif optmask == 'lbo': # Squared difference of eigenvalues (LBO commutativity)
@@ -248,31 +249,30 @@ class CoupledFunctionalMappingDPFM:
         
         return mask.detach().cpu().numpy()
         
-    def resolvent_matrix(self, e1, e2):
-        maxev = max(np.max(e1), np.max(e2))
-        e1 /= maxev
-        e2 /= maxev
-        gamma = 0.5
-        mre = (np.nan_to_num(np.power(e2, gamma))/ (np.nan_to_num(np.power(e2, 2 * gamma))+1))[:self.k2, None] - (np.nan_to_num(np.power(e1, gamma))/ (np.nan_to_num(np.power(e1, 2 * gamma))+1))[None, :self.k1]
-        mim = (1/ (np.nan_to_num(np.power(e2, 2 * gamma))+1))[:self.k2, None] - (1/ (np.nan_to_num(np.power(e1, 2 *gamma))+1))[None, :self.k1]
-        mask = np.nan_to_num(np.square(mim) + np.square(mre))
-        return mask
+    def resolvent_matrix(self, evals1, evals2, device="cpu", gamma=0.5):
+        scaling_factor = max(torch.max(evals1), torch.max(evals2))
+        evals1, evals2 = evals1.to(device) / scaling_factor, evals2.to(device) / scaling_factor
+        evals_gamma1, evals_gamma2 = (evals1 ** gamma)[None, :], (evals2 ** gamma)[:, None]
+
+        M_re = evals_gamma2 / (evals_gamma2.square() + 1) - evals_gamma1 / (evals_gamma1.square() + 1)
+        M_im = 1 / (evals_gamma2.square() + 1) - 1 / (evals_gamma1.square() + 1)
+        return M_re.square() + M_im.square()
         
     def slanted_matrix(self, e1, e2):
         max_e1 = max(e1)
         est_rank = sum([ev - max_e1 < 0 for ev in e2])
 
-        W = np.zeros((self.k2,self.k1));
+        W = torch.zeros((self.k2,self.k1));
         
         for i in range(self.k2):
             for j in range(self.k1):
-                origin = np.array([1,1])
+                origin = torch.tensor([1,1,0])
 
                 slope = est_rank/self.k1
-                direction = np.array([1, slope])
-                direction = direction / np.linalg.norm(direction)
-                
-                W[i,j] = np.exp(-0.03*np.sqrt(i**2 + j**2))*np.linalg.norm(np.cross(direction, np.array([i, j])-origin))
+                direction = torch.tensor([1, slope])
+                direction = direction / torch.linalg.norm(direction)
+                direction = torch.concat((direction, torch.tensor([0])))
+                W[i,j] = torch.exp(-0.03*torch.sqrt(torch.tensor(i**2 + j**2)))*torch.linalg.norm(torch.cross(direction, torch.tensor([i, j, 0], dtype=torch.float32)-origin))
         return W
         
     def get_x0(self, optinit="zeros", descr1_red = 0, descr2_red = 0, mu_LB = 0):
