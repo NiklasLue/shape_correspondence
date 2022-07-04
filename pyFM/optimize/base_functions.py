@@ -65,6 +65,9 @@ def LB_commutation_grad(C, ev_sqdiff):
     """
     return C * ev_sqdiff
 
+def np_inner(x):
+    return np.inner(x,x)
+
 
 def op_commutation(C, op1, op2):
     """
@@ -81,7 +84,7 @@ def op_commutation(C, op1, op2):
     ---------------------
     energy : (float) operator commutativity squared norm
     """
-    return 0.5 * np.square(C @ op1 - op2 @ C).sum()
+    return 0.5 * np_inner(C @ op1 - op2 @ C)
 
 
 def op_commutation_grad(C, op1, op2):
@@ -99,7 +102,8 @@ def op_commutation_grad(C, op1, op2):
     ---------------------
     gardient : (K2,K1) gradient of the operator commutativity squared norm
     """
-    return op2.T @ (op2 @ C - C @ op1) - (op2 @ C - C @ op1) @ op1.T
+    temp = op2 @ C - C @ op1
+    return op2.T @ (temp) - (temp) @ op1.T
 
 
 def oplist_commutation(C, op_list):
