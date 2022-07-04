@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import open3d as o3d
 from dpfm.utils import FrobeniusLoss
 
@@ -46,9 +47,12 @@ class DPFMLoss_unsup(nn.Module):
         self.frob_loss = FrobeniusLoss()
 
 
-    def forward(self, C12, C21, map21, feat1, feat2):
+    def forward(self, C12, C21): #, feat1, feat2
+        I = torch.empty(C12.size())
+        for i in range(C12.size(dim=0)):
+            I[i] = torch.eye(C12.size(dim=1))
+        
         loss = 0
-        I = 0
 
         # orthogonality loss
         orth_loss = self.frob_loss(torch.bmm(C12, C12.transpose(1, 2)), I) * self.w_orth         
@@ -60,4 +64,4 @@ class DPFMLoss_unsup(nn.Module):
         loss += bij_loss
 
 
-        return loss
+        return loss, orth_loss, bij_loss

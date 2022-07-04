@@ -39,11 +39,11 @@ class RegularizedFMNet_unsup(nn.Module):
         C2_i = []
         for i in range(evals_x.size(1)):
             D_i = torch.cat([torch.diag(D[bs, i, :].flatten()).unsqueeze(0) for bs in range(evals_x.size(0))], dim=0)
-            C = torch.bmm(torch.inverse(A_A_t + self.lambda_ * D_i), B_A_t[:, i, :].unsqueeze(1).transpose(1, 2))
-            C1_i.append(C.transpose(1, 2))
+            C1 = torch.bmm(torch.inverse(A_A_t + self.lambda_ * D_i), B_A_t[:, i, :].unsqueeze(1).transpose(1, 2))
+            C1_i.append(C1.transpose(1, 2))
             D_t_i = torch.cat([torch.diag(D_t[bs, i, :].flatten()).unsqueeze(0) for bs in range(evals_x.size(0))], dim=0)
-            C = torch.bmm(torch.inverse(B_B_t + self.lambda_ * D_t_i), A_B_t[:, i, :].unsqueeze(1).transpose(1, 2))
-            C2_i.append(C.transpose(1, 2))
+            C2 = torch.bmm(torch.inverse(B_B_t + self.lambda_ * D_t_i), A_B_t[:, i, :].unsqueeze(1).transpose(1, 2))
+            C2_i.append(C2.transpose(1, 2))
         C1 = torch.cat(C1_i, dim=1)
         C2 = torch.cat(C2_i, dim=1)
 
@@ -93,4 +93,4 @@ class DPFMNet_unsup(nn.Module):
         evals1, evals2 = evals1[:self.n_fmap], evals2[:self.n_fmap]
         C1_pred, C2_pred = self.fmreg_net(feat1, feat2, evals1, evals2, evecs_trans1, evecs_trans2)
 
-        return C1_pred, C2_pred, use_feat1, use_feat2
+        return C1_pred, C2_pred, feat1, feat2
