@@ -29,6 +29,7 @@ class FunctionalMappingAdv(FunctionalMapping):
     FM      : (k2,k1) current FM
     p2p     : (n2,) point to point map associated to the current functional map
     """
+    #TODO: rewrite similar to CoupledFunctionalMappingDPFM to only use shapes, not meshes
     def __init__(self, mesh1, mesh2, shape1=None, shape2=None):
 
         super(FunctionalMappingAdv, self).__init__(mesh1, mesh2)
