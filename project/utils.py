@@ -1,7 +1,7 @@
 import torch
 import open3d as o3d
+from dpfm.utils import FrobeniusLoss
 
-### Helper functions for dataset classes
 def farthest_point_sample(xyz, ratio):
     xyz = xyz.t().unsqueeze(0)
     npoint = int(ratio * xyz.shape[1])
@@ -29,10 +29,35 @@ def square_distance(src, dst):
     dist += torch.sum(dst ** 2, -1).view(B, 1, M)
     return dist
 
-### Helper function for trimesh class
 def read_ply(path):
     mesh = o3d.io.read_triangle_mesh(path)
     # vertices = np.asarray(mesh.vertices)
     # faces = np.asarray(mesh.triangles, dtype=int)
 
     return mesh.vertices, mesh.triangles
+    
+class DPFMLoss_unsup(nn.Module):
+    def __init__(self, w_orth=1, w_bij=1):
+        super().__init__()
+
+        self.w_orth = w_orth
+        self.w_bij = w_bij
+
+        self.frob_loss = FrobeniusLoss()
+
+
+    def forward(self, C12, C21, map21, feat1, feat2):
+        loss = 0
+        I = 0
+
+        # orthogonality loss
+        orth_loss = self.frob_loss(torch.bmm(C12, C12.transpose(1, 2)), I) * self.w_orth         
+        orth_loss += self.frob_loss(torch.bmm(C21, C21.transpose(1, 2)), I) * self.w_orth
+        loss += orth_loss
+
+        # bijectivity loss
+        bij_loss = self.frob_loss(torch.bmm(C12, C21), I) * self.w_bij
+        loss += bij_loss
+
+
+        return loss
