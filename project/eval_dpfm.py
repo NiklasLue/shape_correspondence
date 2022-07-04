@@ -61,7 +61,7 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
     if cfg["dataset"]["name"] == "shrec16":
         test_dataset = ShrecPartialDataset(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                            n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=None, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=None, shuffle=False)
     elif cfg["dataset"]["name"] == "tosca":
         # TODO: adjust use_adj, so that it matches with pyFM
         test_dataset = Tosca(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
@@ -100,7 +100,7 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
         if mode=="FM":
             p2p_pred, log_obj = FM_batch_eval(data, dpfm_net, shape1, shape2)
         elif mode=="CFM":
-            C1, C2 = cfm.fit(shape1, shape2, mu_mask=10, mu_des=1)
+            C1, C2 = cfm.fit(shape1, shape2, **cfg["cfm_eval"])
             p2p_pred = cfm.get_p2p_map(n_jobs=-1)
             log_obj = (data["shape1"]["name"], data["shape2"]["name"], 
                         C1, data["C_gt"].detach().cpu().unsqueeze(0),

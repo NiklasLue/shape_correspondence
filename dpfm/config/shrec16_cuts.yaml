@@ -56,3 +56,14 @@ misc:
   device: 0
   checkpoint_interval: 5
   log_interval: 50
+
+# cfm evaluation params
+cfm_eval:
+  mu_pres: 1
+  mu_coup: 1
+  mu_mask: 100
+  mu_des: 0
+  mu_orient: 0
+  orient_reversing: False
+  optinit: zeros
+  optmask: resolvent
