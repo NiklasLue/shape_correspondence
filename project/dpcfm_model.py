@@ -75,7 +75,6 @@ class DPCFMNet(DPFMNet):
 
 
 
-
 class DPCFMNetV2(DPFMNet):
     """Compute the functional map matrix representation."""
 
@@ -133,7 +132,7 @@ class DPCFMNetV2(DPFMNet):
         evals1, evals2 = evals1[:self.n_fmap], evals2[:self.n_fmap]
 
         C_pred1 = self.fmreg_net1(use_feat1, use_feat2, evals1, evals2, evecs_trans1, evecs_trans2)
-        C_pred2 = self.fmreg_net2(use_feat2, use_feat1, evals2, evals1, evecs_trans2, evecs_trans1, C_pred1)
+        C_pred2 = self.fmreg_net2(ref_feat2, ref_feat1, evals2, evals1, evecs_trans2, evecs_trans1, C_pred1)
 
 
 

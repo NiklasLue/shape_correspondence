@@ -51,9 +51,9 @@ def train_net(cfg):
         train, val = torch.utils.data.random_split(train_dataset, [train_size, val_size])
         
         #Can increase num_workers to speed up training
-        train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=True, num_workers=8)
+        train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=True, num_workers=0)
         
-        valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=False, num_workers=4)
+        valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=True, num_workers=0)
     elif cfg["dataset"]["name"] == "faust":
         raise NotImplementedError("FAUST support will come soon!")
     else:
@@ -71,7 +71,8 @@ def train_net(cfg):
     # Training loop
     print("start training")
     iterations = 0
-    
+    lrs = []
+    lambda1 = lambda epoch: 0.65 ** epoch
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
     # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1, verbose=True)
     writer = SummaryWriter()
@@ -85,6 +86,7 @@ def train_net(cfg):
         fmap_loss = []
         overlap_loss = []
         nce_loss = []
+        coup_loss = []
         for i, data in enumerate(train_loader):
             data = shape_to_device(data, device)
             # data augmentation
@@ -99,7 +101,7 @@ def train_net(cfg):
 
             # do iteration
             C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
-            out, fmap, overlap, nce = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2,
+            out, fmap, overlap, nce, coup = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2,
                              overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
             
             out.backward()
@@ -109,6 +111,7 @@ def train_net(cfg):
             fmap_loss.append(fmap.item())
             overlap_loss.append(overlap.item())
             nce_loss.append(nce.item())
+            coup_loss.append(coup.item())
             # train_loss += train_loss.item()
 
             iterations += 1
@@ -117,6 +120,8 @@ def train_net(cfg):
         avg_fmap_loss = sum(fmap_loss) / len(fmap_loss)
         avg_overlap_loss = sum(overlap_loss) / len(overlap_loss)
         avg_nce_loss = sum(nce_loss) / len(nce_loss)
+        avg_coup_loss = sum(coup_loss) / len(coup_loss)
+        
         
         
             
@@ -126,6 +131,7 @@ def train_net(cfg):
         val_fmap_loss = []
         val_overlap_loss = []
         val_nce_loss = []
+        val_coup_loss = []
         # val_loss = 0.0
         dpcfm_net.eval()     # Optional when not using Model Specific layer
         for i, data in enumerate(valid_loader):
@@ -143,13 +149,14 @@ def train_net(cfg):
 
             #calculate validation loss after each epoch
             C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
-            out, fmap, overlap, nce = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2,
+            out, fmap, overlap, nce, coup = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2,
                             overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
 
             val_loss.append(out.item())
             val_fmap_loss.append(fmap.item())
             val_overlap_loss.append(overlap.item())
             val_nce_loss.append(nce.item())
+            val_coup_loss.append(coup.item())
             # val_loss += val_loss.item() 
 
             # also add validation iterations to iterations
@@ -162,6 +169,7 @@ def train_net(cfg):
         avg_val_fmap_loss = sum(val_fmap_loss) / len(val_fmap_loss)
         avg_val_overlap_loss = sum(val_overlap_loss) / len(val_overlap_loss)
         avg_val_nce_loss = sum(val_nce_loss) / len(val_nce_loss)
+        avg_val_coup_loss = sum(val_coup_loss) / len(val_coup_loss)
 
         # print log every epoch instead of defined by iteration
         # if iterations % cfg["misc"]["log_interval"] == 0:
@@ -181,7 +189,10 @@ def train_net(cfg):
         writer.add_scalar("Overlap Loss/train", avg_overlap_loss, epoch)
 
         writer.add_scalar("NCE Loss/val", avg_val_nce_loss, epoch)
-        writer.add_scalar("NCE Loss/train", avg_nce_loss, epoch)    
+        writer.add_scalar("NCE Loss/train", avg_nce_loss, epoch)
+        
+        writer.add_scalar("Coup Loss/val", avg_val_coup_loss, epoch)
+        writer.add_scalar("Coup Loss/train", avg_coup_loss, epoch) 
 
         
 

@@ -87,4 +87,4 @@ class DPCFMLossV2(DPFMLoss):
         loss += coup_loss
         
 
-        return loss, fmap_loss, acc_loss, nce_loss
+        return loss, fmap_loss, acc_loss, nce_loss, coup_loss
