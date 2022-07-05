@@ -83,7 +83,7 @@ class DPCFMLossV2(DPFMLoss):
         #coupling loss
         #can either comment this part out due to the coupling constarit for computing C2
         I = C12 @ C21
-        coup_loss = self.frob_loss(I, torch.eye(I.shape[0])) * self.w_coup
+        coup_loss = self.frob_loss(I, torch.eye(I.shape[0]).to(I.device)) * self.w_coup
         loss += coup_loss
         
 
