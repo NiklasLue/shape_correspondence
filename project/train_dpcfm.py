@@ -51,7 +51,7 @@ def train_net(cfg):
         train, val = torch.utils.data.random_split(train_dataset, [train_size, val_size])
         
         #Can increase num_workers to speed up training
-        train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=False, num_workers=8)
+        train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=True, num_workers=8)
         
         valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=False, num_workers=4)
     elif cfg["dataset"]["name"] == "faust":
@@ -71,8 +71,7 @@ def train_net(cfg):
     # Training loop
     print("start training")
     iterations = 0
-    lrs = []
-    lambda1 = lambda epoch: 0.65 ** epoch
+    
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
     # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1, verbose=True)
     writer = SummaryWriter()
@@ -160,9 +159,9 @@ def train_net(cfg):
 
 
         avg_val_loss = sum(val_loss) / len(val_loss)
-        avg_val_fmap_loss = sum(fmap_loss) / len(fmap_loss)
-        avg_val_overlap_loss = sum(overlap_loss) / len(overlap_loss)
-        avg_val_nce_loss = sum(nce_loss) / len(nce_loss)
+        avg_val_fmap_loss = sum(val_fmap_loss) / len(val_fmap_loss)
+        avg_val_overlap_loss = sum(val_overlap_loss) / len(val_overlap_loss)
+        avg_val_nce_loss = sum(val_nce_loss) / len(val_nce_loss)
 
         # print log every epoch instead of defined by iteration
         # if iterations % cfg["misc"]["log_interval"] == 0:
