@@ -48,7 +48,7 @@ def train_net(cfg, n_samples=None):
         #Can increase num_workers to speed up training
         train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=True, num_workers=0)
         
-        valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=True, num_workers=0)
+        valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=False, num_workers=0)
     elif cfg["dataset"]["name"] == "faust":
         raise NotImplementedError("FAUST support will come soon!")
     else:
