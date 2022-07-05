@@ -3,7 +3,8 @@ from torch import nn
 
 from diffusion_net.layers import DiffusionNet
 
-from dpfm.model import CrossAttentionRefinementNet, RegularizedFMNet, DPFMNet, get_mask
+from dpfm.model import CrossAttentionRefinementNet, RegularizedFMNet, DPFMNet
+from dpfm.utils import get_mask
 
 
 
@@ -64,7 +65,7 @@ class DPCFMNet(DPFMNet):
         evals1, evals2 = evals1[:self.n_fmap], evals2[:self.n_fmap]
 
         C_pred1 = self.fmreg_net1(use_feat1, use_feat2, evals1, evals2, evecs_trans1, evecs_trans2)
-        C_pred2 = self.fmreg_net1(use_feat2, use_feat1, evals2, evals1, evecs_trans2, evecs_trans1)
+        C_pred2 = self.fmreg_net1(ref_feat2, ref_feat1, evals2, evals1, evecs_trans2, evecs_trans1)
 
 
 
@@ -149,6 +150,7 @@ class RegularizedFMNetV2(nn.Module):
         super().__init__()
         self.lambda_ = lambda_
         self.resolvant_gamma = resolvant_gamma
+        
 
     def forward(self, feat_x, feat_y, evals_x, evals_y, evecs_trans_x, evecs_trans_y, C1):
         # compute linear operator matrix representation C1 and C2
