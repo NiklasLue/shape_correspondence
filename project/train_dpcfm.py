@@ -8,7 +8,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 
-from project.dpcfm_model import DPCFMNet
+from project.dpcfm_model import DPCFMNet, DPCFMNetV2
 from  project.dpcfm_utils import DPCFMLoss
 
 from dpfm.utils import augment_batch
@@ -51,16 +51,17 @@ def train_net(cfg):
         train, val = torch.utils.data.random_split(train_dataset, [train_size, val_size])
         
         #Can increase num_workers to speed up training
-        train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=True, num_workers=0)
+        train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=False, num_workers=8)
         
-        valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=True, num_workers=0)
+        valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=False, num_workers=4)
     elif cfg["dataset"]["name"] == "faust":
         raise NotImplementedError("FAUST support will come soon!")
     else:
         raise NotImplementedError("dataset not implemented!")
 
     # define model
-    dpcfm_net = DPCFMNet(cfg).to(device)
+    #dpcfm_net = DPCFMNet(cfg).to(device)
+    dpcfm_net = DPCFMNetV2(cfg).to(device)
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpcfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
     torch.nn.utils.clip_grad_norm_(dpcfm_net.parameters(), 1)

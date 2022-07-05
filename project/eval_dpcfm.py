@@ -31,7 +31,7 @@ def eval_net(cfg, model_path, predictions_name):
     if cfg["dataset"]["name"] == "shrec16":
         test_dataset = ShrecPartialDataset(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                            n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=None, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=None, shuffle=False)
     elif cfg["dataset"]["name"] == "tosca":
         test_dataset = Tosca(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                            n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir, use_adj=TRUE)
