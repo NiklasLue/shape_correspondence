@@ -37,6 +37,14 @@ def read_ply(path):
 
     return mesh.vertices, mesh.triangles
     
+def get_rank(evals1, evals2):
+    est_rank = 0
+    m = max(evals1)
+    for i in range(len(evals2)):
+        if evals2[i] < m:
+            est_rank += 1
+    return est_rank
+    
 class DPFMLoss_unsup(nn.Module):
     def __init__(self, w_orth=1, w_bij=1):
         super().__init__()
@@ -47,16 +55,21 @@ class DPFMLoss_unsup(nn.Module):
         self.frob_loss = FrobeniusLoss()
 
 
-    def forward(self, C12, C21): #, feat1, feat2
-        I = torch.empty(C12.size())
-        for i in range(C12.size(dim=0)):
-            I[i] = torch.eye(C12.size(dim=1))
-        
+    def forward(self, C12, C21, evals1, evals2): #, feat1, feat2
+        device = C12.device
+        I = torch.empty(C12.size()).to(device)
+        for i in range(I.size(dim=0)):
+            J = torch.eye(I.size(dim=1))
+            r = get_rank(evals1[i,:], evals2[i,:])
+            for k in range(r, I.size(dim=1)):
+                J[k,k] = 0
+            I[i] = J  
+            
         loss = 0
 
         # orthogonality loss
         orth_loss = self.frob_loss(torch.bmm(C12, C12.transpose(1, 2)), I) * self.w_orth         
-        orth_loss += self.frob_loss(torch.bmm(C21, C21.transpose(1, 2)), I) * self.w_orth
+        orth_loss += self.frob_loss(torch.bmm(C21.transpose(1, 2), C21), I) * self.w_orth
         loss += orth_loss
 
         # bijectivity loss

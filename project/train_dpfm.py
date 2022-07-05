@@ -255,8 +255,8 @@ def train_net_unsup(cfg, n_samples=None):
             # prepare iteration data
 
             # do iteration
-            C1_pred, C2_pred, use_feat1, use_feat2 = dpfm_net(data)
-            out, orth, bij = criterion(C1_pred, C2_pred)# , use_feat1, use_feat2
+            C1_pred, C2_pred, use_feat1, use_feat2, evals1, evals2 = dpfm_net(data)
+            out, orth, bij = criterion(C1_pred, C2_pred, evals1, evals2)# , use_feat1, use_feat2
             
             out.backward()
             torch.nn.utils.clip_grad_norm_(dpfm_net.parameters(), 1)
@@ -289,8 +289,8 @@ def train_net_unsup(cfg, n_samples=None):
             # data = augment_batch(data, rot_x=30, rot_y=30, rot_z=60, std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
 
             #calculate validation loss after each epoch
-            C1_pred, C2_pred, use_feat1, use_feat2 = dpfm_net(data)
-            out, orth, bij = criterion(C1_pred, C2_pred) #, use_feat1, use_feat2
+            C1_pred, C2_pred, use_feat1, use_feat2, evals1, evals2 = dpfm_net(data)
+            out, orth, bij = criterion(C1_pred, C2_pred, evals1, evals2)# , use_feat1, use_feat2
 
             val_loss.append(out.item())
             val_orth_loss.append(orth.item())

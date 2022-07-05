@@ -119,7 +119,7 @@ def eval_net_unsup(cfg, model_path, predictions_name):
         mesh1, mesh2 = shape1["mesh"], shape2["mesh"]
 
         # do iteration
-        C1_pred, C2_pred, use_feat1, use_feat2 = dpfm_net(data)
+        C1_pred, C2_pred, use_feat1, use_feat2, _, _ = dpfm_net(data)
         _, k2, k1 = C1_pred.shape
         p2p_pred = FM_to_p2p(C1_pred.detach().cpu().squeeze(0), shape1["evecs"][:, :k1].cpu(), shape2["evecs"][:, :k2].cpu(), use_adj=True, use_ANN=False, n_jobs=1)
 
