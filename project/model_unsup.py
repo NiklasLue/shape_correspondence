@@ -50,4 +50,4 @@ class DPFMNet_unsup(nn.Module):
         C1_pred = self.fmreg_net(feat1, feat2, evals1, evals2, evecs_trans1, evecs_trans2)
         C2_pred = self.fmreg_net(feat2, feat1, evals2, evals1, evecs_trans2, evecs_trans1)
 
-        return C1_pred, C2_pred, feat1, feat2, evals1.unsqueeze(0), evals2.unsqueeze(0)
+        return C1_pred, C2_pred, feat1, feat2

@@ -10,7 +10,7 @@ dataset:
 
 # optimizer params
 optimizer:
-  lr: 1e-3
+  lr: 1e-4
   b1: 0.9
   b2: 0.99
   decay_iter: 100
@@ -42,13 +42,16 @@ attention:
 overlap:
   overlap_feat_dim: 32
 
-# loss params
+# loss params (last two only for unsupervised version)
 loss:
   w_fmap: 1
   w_acc: 1
   w_nce: 1
   nce_t: 0.07
   nce_num_pairs: 4096
+  w_bij: 1
+  w_orth: 1
+
 
 # misc
 misc:

@@ -44,15 +44,45 @@ def get_rank(evals1, evals2):
         if evals2[i] < m:
             est_rank += 1
     return est_rank
-    
+
+class OrthLoss(nn.Module):
+    def __init__(self, w_orth=1):
+        super().__init__()
+
+        self.w_orth = w_orth
+        self.frob_loss = FrobeniusLoss()
+
+
+    def forward(self, C12, C21, I_r): #, feat1, feat2
+
+        # orthogonality loss
+        orth_loss = self.frob_loss(torch.bmm(C12, C12.transpose(1, 2)), I_r) + self.frob_loss(torch.bmm(C21.transpose(1, 2), C21), I_r)
+
+
+        return orth_loss * self.w_orth
+        
+class BijLoss(nn.Module):
+    def __init__(self, w_bij=1):
+        super().__init__()
+
+        self.w_bij = w_bij
+        self.frob_loss = FrobeniusLoss()
+
+
+    def forward(self, C12, C21, I_r): #, feat1, feat2
+
+        # bijectivity loss
+        bij_loss = self.frob_loss(torch.bmm(C12, C21), I_r) * self.w_bij
+
+
+        return bij_loss
+
 class DPFMLoss_unsup(nn.Module):
     def __init__(self, w_orth=1, w_bij=1):
         super().__init__()
 
-        self.w_orth = w_orth
-        self.w_bij = w_bij
-
-        self.frob_loss = FrobeniusLoss()
+        self.orthogonality_loss = OrthLoss(w_orth)
+        self.bijectivity_loss = BijLoss(w_bij)
 
 
     def forward(self, C12, C21, evals1, evals2): #, feat1, feat2
@@ -63,18 +93,17 @@ class DPFMLoss_unsup(nn.Module):
             r = get_rank(evals1[i,:], evals2[i,:])
             for k in range(r, I.size(dim=1)):
                 J[k,k] = 0
-            I[i] = J  
+            I[i] = J
             
         loss = 0
+        
 
         # orthogonality loss
-        orth_loss = self.frob_loss(torch.bmm(C12, C12.transpose(1, 2)), I) * self.w_orth         
-        orth_loss += self.frob_loss(torch.bmm(C21.transpose(1, 2), C21), I) * self.w_orth
+        orth_loss = self.orthogonality_loss(C12, C21, I)
         loss += orth_loss
 
         # bijectivity loss
-        bij_loss = self.frob_loss(torch.bmm(C12, C21), I) * self.w_bij
+        bij_loss = self.bijectivity_loss(C12, C21, I)
         loss += bij_loss
-
 
         return loss, orth_loss, bij_loss

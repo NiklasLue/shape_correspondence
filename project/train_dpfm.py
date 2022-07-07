@@ -227,7 +227,7 @@ def train_net_unsup(cfg, n_samples=None):
     dpfm_net = DPFMNet_unsup(cfg).to(device)
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
-    criterion = DPFMLoss_unsup().to(device) #w_orth=cfg["loss"]["w_orth"], w_acc=cfg["loss"]["w_bij"]
+    criterion = DPFMLoss_unsup(w_orth=cfg["loss"]["w_orth"], w_bij=cfg["loss"]["w_bij"]).to(device) 
 
     # Training loop
     print("start training")
@@ -255,8 +255,11 @@ def train_net_unsup(cfg, n_samples=None):
             # prepare iteration data
 
             # do iteration
-            C1_pred, C2_pred, use_feat1, use_feat2, evals1, evals2 = dpfm_net(data)
-            out, orth, bij = criterion(C1_pred, C2_pred, evals1, evals2)# , use_feat1, use_feat2
+            C1_pred, C2_pred, _, _ = dpfm_net(data)
+            _, k1, k2 = C1_pred.shape
+            eval1 = data["shape1"]["evals"][:k1].unsqueeze(0)
+            eval2 = data["shape1"]["evals"][:k2].unsqueeze(0)
+            out, orth, bij = criterion(C1_pred, C2_pred, eval1, eval2)# , use_feat1, use_feat2
             
             out.backward()
             torch.nn.utils.clip_grad_norm_(dpfm_net.parameters(), 1)
@@ -289,9 +292,11 @@ def train_net_unsup(cfg, n_samples=None):
             # data = augment_batch(data, rot_x=30, rot_y=30, rot_z=60, std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
 
             #calculate validation loss after each epoch
-            C1_pred, C2_pred, use_feat1, use_feat2, evals1, evals2 = dpfm_net(data)
-            out, orth, bij = criterion(C1_pred, C2_pred, evals1, evals2)# , use_feat1, use_feat2
-
+            C1_pred, C2_pred, _, _ = dpfm_net(data)
+            _, k1, k2 = C1_pred.shape
+            eval1 = data["shape1"]["evals"][:k1].unsqueeze(0)
+            eval2 = data["shape1"]["evals"][:k2].unsqueeze(0)
+            out, orth, bij = criterion(C1_pred, C2_pred, eval1, eval2)# , use_feat1, use_feat2
             val_loss.append(out.item())
             val_orth_loss.append(orth.item())
             val_bij_loss.append(bij.item())
