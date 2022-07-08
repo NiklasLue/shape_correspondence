@@ -6,3 +6,4 @@ data/eval
 project/data/
 .pai_simulator
 settings.yaml
+runs/*
