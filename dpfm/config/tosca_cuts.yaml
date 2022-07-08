@@ -2,9 +2,9 @@
 dataset:
   name: tosca
   subset: cuts
-  root_train: '../../data/SGP_dataset_off/train'
-  root_test: '../../data/SGP_dataset_off/test'
-  cache_dir: '../../data/op_cache'
+  root_train: '{{ABS_PATH}}/data/SGP_dataset_off/train'
+  root_test: '{{ABS_PATH}}/data/SGP_dataset_off/test'
+  cache_dir: '{{ABS_PATH}}/data/op_cache'
 
 
 
@@ -18,11 +18,11 @@ optimizer:
 
 training:
   batch_size: 10
-  epochs: 50
+  epochs: 300
 
 # fmap module params
 fmap:
-  n_fmap: 50  # number of eigenvectors used for fmap
+  n_fmap: 75  # number of eigenvectors used for fmap
   k_eig: 128  # number of eigenvectors used for diffusion
   n_feat: 128
   C_in: 3
@@ -56,3 +56,14 @@ misc:
   device: 0
   checkpoint_interval: 5
   log_interval: 50
+
+# cfm evaluation params
+cfm_eval:
+  mu_pres: 0.1
+  mu_coup: 1
+  mu_mask: 1000
+  mu_des: 1
+  mu_orient: 0
+  orient_reversing: False
+  optinit: zeros
+  optmask: slanted
