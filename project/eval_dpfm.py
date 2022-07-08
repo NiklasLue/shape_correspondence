@@ -124,7 +124,7 @@ def eval_net_unsup(cfg, model_path, predictions_name):
         p2p_pred = FM_to_p2p(C1_pred.detach().cpu().squeeze(0), shape1["evecs"][:, :k1].cpu(), shape2["evecs"][:, :k2].cpu(), use_adj=True, use_ANN=False, n_jobs=1)
 
         name1, name2 = data["shape1"]["name"], data["shape2"]["name"]
-        eval1, eval2 = data["shape1"]["evals"][:k1], data["shape1"]["evals"][:k2]
+        eval1, eval2 = data["shape1"]["evals"][:k1], data["shape2"]["evals"][:k2]
         to_save_list.append((name1, name2, C1_pred.detach().cpu().squeeze(0), C2_pred.detach().cpu().squeeze(0),
                              C_gt.detach().cpu().squeeze(0), gt_partiality_mask12.detach().cpu().squeeze(0),
                              gt_partiality_mask21.detach().cpu().squeeze(0), p2p_pred, p2p_gt, eval1, eval2))
