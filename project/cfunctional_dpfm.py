@@ -119,7 +119,7 @@ class CoupledFunctionalMappingDPFM:
         CoP21 : (n2,n1) sparse - precise map from mesh2 to mesh1
         """
         
-        p2p= spectral.FM_to_p2p(self.C1, self.shape1["evecs"], self.shape2["evecs"], use_adj=use_adj, n_jobs=n_jobs)
+        p2p= spectral.FM_to_p2p(self.C1, self.shape1["evecs"].cpu(), self.shape2["evecs"].cpu(), use_adj=use_adj, n_jobs=n_jobs)
 
         return p2p
     
@@ -294,7 +294,7 @@ class CoupledFunctionalMappingDPFM:
         ev2 = self.shape2["evals"]
 
         if optinit == 'nocoup': # Linear-system initialization (solution of C1 and C2 if coupling is removed)
-            e1, e2 = ev1[:self.k1],  ev2[:self.k2]
+            e1, e2 = ev1[:self.k1].detach().cpu().numpy(),  ev2[:self.k2].detach().cpu().numpy()
             maxev =  max(np.max(e1), np.max(e2))
             e1 /= maxev
             e2 /= maxev
