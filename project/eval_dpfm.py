@@ -46,11 +46,12 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
     """
     #TODO: tidy up creation of output, depending on the return argumentss
     #TODO: create option not to calculate any geodesic distances, as this calculation takes the most amount of time
-    
+    print(f"Starting evaluation...")
     if torch.cuda.is_available() and cfg["misc"]["cuda"]:
         device = torch.device(f'cuda:{cfg["misc"]["device"]}')
     else:
         device = torch.device("cpu")
+    print(f"Using device {device}")
 
     # important paths
     base_path = os.path.dirname(__file__)
@@ -58,6 +59,7 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
     dataset_path = cfg["dataset"]["root_test"]
 
     # create dataset
+    print(f"Loading data...")
     if cfg["dataset"]["name"] == "shrec16":
         test_dataset = ShrecPartialDataset(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                            n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir)
@@ -73,6 +75,7 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
         raise NotImplementedError("dataset not implemented!")
 
     # define model
+    print(f"Loading model...")
     dpfm_net = DPFMNet(cfg).to(device)
     dpfm_net.load_state_dict(torch.load(model_path, map_location=device))
     dpfm_net.eval()
@@ -89,6 +92,7 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
         distances = []
 
     # enumerate through batches of data
+    print(f"Starting inference...")
     for i, data in enumerate(tqdm.tqdm(test_loader)):
 
         data = shape_to_device(data, device)
@@ -125,7 +129,7 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
             acc_list.append(mean_dist)
         else:    
             acc_list.append(accuracy(p2p_pred, p2p_gt.cpu(), mesh1_geod, sqrt_area=mesh1_sqrt_area))
-
+        
     print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
     torch.save(to_save_list, predictions_name)
 
