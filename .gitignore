@@ -3,7 +3,7 @@
 data/eval
 .vscode
 **/.DS_Store
-project/data/
+project/data/saved_models_cuts_3
 .pai_simulator
 settings.yaml
 runs/*
