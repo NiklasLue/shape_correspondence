@@ -447,7 +447,8 @@ class ShrecPartialDataset(Dataset):
         # Compute fmap
         map21 = self.corres_dict[(idx1, idx2)]
 
-        evec_1, evec_2, mass2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap], shape2["mass"]
+        evec_1, evec_2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap]
+        mass1, mass2 = shape1["mass"], shape2["mass"]
         trans_evec2 = evec_2.t() @ torch.diag(mass2)
 
         # If the size of the map vector is too long, shorten it
@@ -459,14 +460,17 @@ class ShrecPartialDataset(Dataset):
         P = torch.zeros(evec_2.size(0), evec_1.size(0))
         P[range(evec_2.size(0)), map21.flatten()] = 1
         C_gt = trans_evec2 @ P @ evec_1
-
+        
+        trans_evec1 = evec_1.t() @ torch.diag(mass1)
+        C2_gt = trans_evec1 @ P.t() @ evec_2
+        
         # compute region labels
         gt_partiality_mask12 = torch.zeros(shape1["xyz"].size(0)).long().detach()
         gt_partiality_mask12[map21[map21 != -1]] = 1
         gt_partiality_mask21 = torch.zeros(shape2["xyz"].size(0)).long().detach()
         gt_partiality_mask21[map21 != -1] = 1
 
-        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt,
+        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt, "C2_gt": C2_gt,
                 "map21": map21, "gt_partiality_mask12": gt_partiality_mask12, "gt_partiality_mask21": gt_partiality_mask21}
 
 class Tosca(Dataset):
@@ -687,12 +691,16 @@ class Tosca(Dataset):
         # Compute fmap
         map21 = self.corres_dict[(idx1, idx2)]
 
-        evec_1, evec_2, mass2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap], shape2["mass"]
+        evec_1, evec_2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap]
+        mass1, mass2 = shape1["mass"], shape2["mass"]
         trans_evec2 = evec_2.t() @ torch.diag(mass2)
 
         P = torch.zeros(evec_2.size(0), evec_1.size(0))
         P[range(evec_2.size(0)), map21.flatten()] = 1
         C_gt = trans_evec2 @ P @ evec_1
+        
+        trans_evec1 = evec_1.t() @ torch.diag(mass1)
+        C2_gt = trans_evec1 @ P.t() @ evec_2
 
         # compute region labels
         gt_partiality_mask12 = torch.zeros(shape1["xyz"].size(0)).long().detach()
@@ -700,7 +708,7 @@ class Tosca(Dataset):
         gt_partiality_mask21 = torch.zeros(shape2["xyz"].size(0)).long().detach()
         gt_partiality_mask21[map21 != -1] = 1
 
-        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt,
+        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt, "C2_gt": C2_gt,
                 "map21": map21, "gt_partiality_mask12": gt_partiality_mask12, "gt_partiality_mask21": gt_partiality_mask21}
 
 

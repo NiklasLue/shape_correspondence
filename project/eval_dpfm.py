@@ -114,6 +114,7 @@ def eval_net_unsup(cfg, model_path, predictions_name):
 
         # prepare iteration data
         C_gt = data["C_gt"].unsqueeze(0)
+        C2_gt = data["C2_gt"].unsqueeze(0)
         gt_partiality_mask12, gt_partiality_mask21 = data["gt_partiality_mask12"], data["gt_partiality_mask21"]
         shape1, shape2, p2p_gt = data["shape1"], data["shape2"], data["map21"]
         mesh1, mesh2 = shape1["mesh"], shape2["mesh"]
@@ -126,8 +127,9 @@ def eval_net_unsup(cfg, model_path, predictions_name):
         name1, name2 = data["shape1"]["name"], data["shape2"]["name"]
         eval1, eval2 = data["shape1"]["evals"][:k1], data["shape2"]["evals"][:k2]
         to_save_list.append((name1, name2, C1_pred.detach().cpu().squeeze(0), C2_pred.detach().cpu().squeeze(0),
-                             C_gt.detach().cpu().squeeze(0), gt_partiality_mask12.detach().cpu().squeeze(0),
-                             gt_partiality_mask21.detach().cpu().squeeze(0), p2p_pred, p2p_gt, eval1, eval2))
+                             C_gt.detach().cpu().squeeze(0), C2_gt.detach().cpu().squeeze(0),
+                             gt_partiality_mask12.detach().cpu().squeeze(0), gt_partiality_mask21.detach().cpu().squeeze(0),
+                             p2p_pred, p2p_gt, eval1, eval2))
 
         acc_list.append(accuracy(p2p_pred, p2p_gt.cpu(), mesh1.get_geodesic(), sqrt_area=mesh1.sqrtarea))
 
