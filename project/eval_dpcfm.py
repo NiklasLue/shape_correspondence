@@ -48,6 +48,8 @@ def eval_net(cfg, model_path, predictions_name):
 
     to_save_list = []
     acc_list = []
+    p2p_pred_list = []
+
     for i, data in enumerate(tqdm.tqdm(test_loader)):
 
         data = shape_to_device(data, device)
@@ -69,10 +71,12 @@ def eval_net(cfg, model_path, predictions_name):
                              p2p_pred, p2p_gt))
 
         acc_list.append(accuracy(p2p_pred, p2p_gt.cpu(), mesh1.get_geodesic(), sqrt_area=mesh1.sqrtarea))
+        
+        p2p_pred_list.append({'p2p': p2p_pred, 'mesh1': shape1["mesh"], 'mesh2': shape2["mesh"]})
 
-    print(f"Mean normalized geodesic error: {statistics.fmean(acc_list)}")
+    print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
     torch.save(to_save_list, predictions_name)
-
+    return p2p_pred_list
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Launch the training of DPFM model.")
