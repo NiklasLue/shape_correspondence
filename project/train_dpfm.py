@@ -227,7 +227,8 @@ def train_net_unsup(cfg, n_samples=None):
     dpfm_net = DPFMNet_unsup(cfg).to(device)
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
-    criterion = DPFMLoss_unsup(w_orth=cfg["loss"]["w_orth"], w_bij=cfg["loss"]["w_bij"]).to(device) 
+    criterion = DPFMLoss_unsup(w_orth_C1=cfg["loss"]["w_orth_C1"], w_orth_C2=cfg["loss"]["w_orth_C2"],
+    w_bij=cfg["loss"]["w_bij"], w_diff=cfg["loss"]["w_diff"]).to(device) 
 
     # Training loop
     print("start training")
@@ -244,7 +245,8 @@ def train_net_unsup(cfg, n_samples=None):
         ### training step
         # train_loss = 0.0
         train_loss = []
-        orth_loss = []
+        orth_loss_C1 = []
+        orth_loss_C2 = []
         bij_loss = []
         for i, data in enumerate(train_loader):
             data = shape_to_device(data, device)
@@ -259,28 +261,31 @@ def train_net_unsup(cfg, n_samples=None):
             _, k1, k2 = C1_pred.shape
             eval1 = data["shape1"]["evals"][:k1].unsqueeze(0)
             eval2 = data["shape1"]["evals"][:k2].unsqueeze(0)
-            out, orth, bij = criterion(C1_pred, C2_pred, eval1, eval2)# , use_feat1, use_feat2
+            out, orth_C1, orth_C2, bij = criterion(C1_pred, C2_pred, eval1, eval2)# , use_feat1, use_feat2
             
             out.backward()
             torch.nn.utils.clip_grad_norm_(dpfm_net.parameters(), 1)
             optimizer.step()
             optimizer.zero_grad()
             train_loss.append(out.item())
-            orth_loss.append(orth.item())
+            orth_loss_C1.append(orth_C1.item())
+            orth_loss_C2.append(orth_C2.item())
             bij_loss.append(bij.item())
             # train_loss += train_loss.item()
 
             iterations += 1
         
         avg_train_loss = sum(train_loss) / len(train_loss)
-        avg_orth_loss = sum(orth_loss) / len(orth_loss)
+        avg_orth_loss_C1 = sum(orth_loss_C1) / len(orth_loss_C1)
+        avg_orth_loss_C2 = sum(orth_loss_C2) / len(orth_loss_C2)
         avg_bij_loss = sum(bij_loss) / len(bij_loss)
         
             
         ### validation step  
         #TODO: early stopping
         val_loss = []
-        val_orth_loss = []
+        val_orth_loss_C1 = []
+        val_orth_loss_C2 = []
         val_bij_loss = []
         # val_loss = 0.0
         dpfm_net.eval()     # Optional when not using Model Specific layer
@@ -296,9 +301,10 @@ def train_net_unsup(cfg, n_samples=None):
             _, k1, k2 = C1_pred.shape
             eval1 = data["shape1"]["evals"][:k1].unsqueeze(0)
             eval2 = data["shape1"]["evals"][:k2].unsqueeze(0)
-            out, orth, bij = criterion(C1_pred, C2_pred, eval1, eval2)# , use_feat1, use_feat2
+            out, orth_C1, orth_C2, bij = criterion(C1_pred, C2_pred, eval1, eval2)# , use_feat1, use_feat2
             val_loss.append(out.item())
-            val_orth_loss.append(orth.item())
+            val_orth_loss_C1.append(orth_C1.item())
+            val_orth_loss_C2.append(orth_C2.item())
             val_bij_loss.append(bij.item())
             # val_loss += val_loss.item() 
 
@@ -306,7 +312,8 @@ def train_net_unsup(cfg, n_samples=None):
             iterations += 1
 
         avg_val_loss = sum(val_loss) / len(val_loss)
-        avg_val_orth_loss = sum(val_orth_loss) / len(val_orth_loss)
+        avg_val_orth_loss_C1 = sum(val_orth_loss_C1) / len(val_orth_loss_C1)
+        avg_val_orth_loss_C2 = sum(val_orth_loss_C2) / len(val_orth_loss_C2)
         avg_val_bij_loss = sum(val_bij_loss) / len(val_bij_loss)
 
         # print log every epoch instead of defined by iteration
@@ -320,8 +327,11 @@ def train_net_unsup(cfg, n_samples=None):
         writer.add_scalar("Loss/val", avg_val_loss, epoch)
         writer.add_scalar("Loss/train", avg_train_loss, epoch)
 
-        writer.add_scalar("Orthogonality Loss/val", avg_val_orth_loss, epoch)
-        writer.add_scalar("Orthogonality Loss/train", avg_orth_loss, epoch)
+        writer.add_scalar("Orthogonality Loss C1/val", avg_val_orth_loss_C1, epoch)
+        writer.add_scalar("Orthogonality Loss C1/train", avg_orth_loss_C1, epoch)
+        
+        writer.add_scalar("Orthogonality Loss C2/val", avg_val_orth_loss_C2, epoch)
+        writer.add_scalar("Orthogonality Loss C2/train", avg_orth_loss_C2, epoch)
 
         writer.add_scalar("Bijectivity Loss/val", avg_val_bij_loss, epoch)
         writer.add_scalar("Bijectivity Loss/train", avg_bij_loss, epoch)
