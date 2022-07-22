@@ -331,14 +331,14 @@ class CoupledFunctionalMapping:
         
         return mask
         
-    def resolvent_matrix(self, e1,e2):
+    def resolvent_matrix(self, e1, e2):
         maxev = max(np.max(e1), np.max(e2))
         e1 /= maxev
         e2 /= maxev
         gamma = 0.5
         mre = (np.nan_to_num(np.power(e2, gamma))/ (np.nan_to_num(np.power(e2, 2 * gamma))+1))[:self.k2, None] - (np.nan_to_num(np.power(e1, gamma))/ (np.nan_to_num(np.power(e1, 2 * gamma))+1))[None, :self.k1]
         mim = (1/ (np.nan_to_num(np.power(e2, 2 * gamma))+1))[:self.k2, None] - (1/ (np.nan_to_num(np.power(e1, 2 *gamma))+1))[None, :self.k1]
-        mask = np.nan_to_num(np.square(mim) + np.square(mim))
+        mask = np.nan_to_num(np.square(mre) + np.square(mim))
         return mask
         
     def slanted_matrix(self, e1, e2):

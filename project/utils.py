@@ -1,6 +1,7 @@
 import torch
 import open3d as o3d
 
+### Helper functions for dataset classes
 def farthest_point_sample(xyz, ratio):
     xyz = xyz.t().unsqueeze(0)
     npoint = int(ratio * xyz.shape[1])
@@ -28,6 +29,7 @@ def square_distance(src, dst):
     dist += torch.sum(dst ** 2, -1).view(B, 1, M)
     return dist
 
+### Helper function for trimesh class
 def read_ply(path):
     mesh = o3d.io.read_triangle_mesh(path)
     # vertices = np.asarray(mesh.vertices)
