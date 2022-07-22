@@ -62,7 +62,7 @@ def main(source_domain_path, target_domain_path, cfg, n_samples=None):
     ##  Training source   ##
     ######################## 
     
-    #train.source_only(cfg, source_train_loader, source_valid_loader, target_train_loader, target_valid_loader, save_name)
+    train.source_only(cfg, source_train_loader, source_valid_loader, target_train_loader, target_valid_loader, save_name)
     
     
     torch.cuda.empty_cache()

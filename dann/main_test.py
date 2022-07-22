@@ -43,16 +43,13 @@ def main_test(source_domain_path, target_domain_path, model_path, cfg, predictio
    
     
     ########################
-    ##  Training source   ##
+    ##      Testing       ##
     ######################## 
     
-    pred_p2p_list_tgt, distances_tgt = test_target(cfg, target_test_loader, model_path, save_name, predictions_name)    
-    pred_p2p_list_src, distances_src = test_source(cfg, source_test_loadet, model_path, save_name, predictions_name)
+    pred_p2p_list_tgt, distances_tgt = test.test_target(cfg, target_test_loader, model_path, save_name, predictions_name)    
+    pred_p2p_list_src, distances_src = test.test_source(cfg, source_test_loader, model_path, save_name, predictions_name)
     torch.cuda.empty_cache()
 
-    ########################
-    ##    Training dann   ##
-    ########################
     
     return pred_p2p_list_tgt, pred_p2p_list_src
 

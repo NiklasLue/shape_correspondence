@@ -2,8 +2,8 @@
 dataset:
   name: tosca
   subset: cuts
-  root_train: '../data/SGP_dataset_off1/train_full'
-  root_test: '../data/SGP_dataset_off1/test_full'
+  root_train: '../data/SGP_dataset_off/train_full'
+  root_test: '../data/SGP_dataset_off/test_full'
   cache_dir: '../data/op_cache'
 
 

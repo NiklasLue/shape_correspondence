@@ -8,9 +8,9 @@ import os
 
 from torch.utils.tensorboard import SummaryWriter
 
-from dann.utils import save_model, set_model_mode, DPFMLoss_da
+from dann.utils import save_model, set_model_mode, ExtLoss, FrobeniusLoss, DPFMLoss_da
 
-from dann.model import Discriminator, DPFMNet_DA
+from dann.model import FeatExtractorNet, MapExtractorNet, Discriminator, DPFMNet_DA
 #from utils import visualize
 from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
 from dpfm.utils import augment_batch
@@ -51,7 +51,7 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
     optimizer = optim.Adam(dpfm_da_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
 
-    writer = SummaryWriter('runs/dann')
+    writer = SummaryWriter()
     for epoch in tqdm.tqdm(range(1, cfg["training"]["epochs"] + 1)):
         #print('Epoch : {}'.format(epoch))
         dpfm_da_net.train()
@@ -59,7 +59,7 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
         start_steps = epoch * len(source_train_loader)
         total_steps = cfg["training"]["epochs"] * len(target_train_loader)
         
-            
+    
         ### training step
         train_loss = []
         fmap_loss = []
@@ -153,13 +153,19 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
                                                                   overlap_score12, overlap_score21, gt_partiality_mask12,
                                                                   gt_partiality_mask21, src_domain_output, label_src)
                 val_loss.append(out.item())
-                
+                val_fmap_loss.append(fmap.item())
+                val_overlap_loss.append(acc.item())
+                val_nce_loss.append(nce.item())
                 val_discriminator_loss.append(discriminator.item())
 
                 # val_loss += val_loss.item() 
-        del overlap_score12, overlap_score21, use_feat1, use_feat2, C_pred, source_data, target_data
- 
+
         avg_val_loss = sum(val_loss) / len(val_loss)
+        avg_val_fmap_loss = sum(val_fmap_loss) / len(val_fmap_loss)
+        avg_val_overlap_loss = sum(val_overlap_loss) / len(val_overlap_loss)
+        avg_val_nce_loss = sum(val_nce_loss) / len(val_nce_loss)
+        
+        avg_val_discriminator_loss = sum(val_discriminator_loss) / len(val_discriminator_loss)
         
         avg_val_discr_loss = sum(val_discriminator_loss)/ len(val_discriminator_loss)
         print(f"#epoch:{epoch}, #iteration:{iterations}, train_loss:{avg_train_loss}, val_loss:{avg_val_loss}")
@@ -205,8 +211,9 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
 
     optimizer = optim.Adam(model.parameters(),
     lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
-    writer = SummaryWriter('runs/dann')
+    writer = SummaryWriter()
     torch.cuda.empty_cache()
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
 
     
     for epoch in tqdm.tqdm(range(1, cfg["training"]["epochs"] + 1)):
@@ -229,8 +236,15 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
             source_data = shape_to_device(source_data, device)
             target_data = shape_to_device(target_data, device)
             
+            
+            ##    This is wrong   ##
+            
             size_src = [1,2]#len(source_data)
             size_tgt = [1,2]#len(target_data)
+            
+            #########################
+            
+            
             label_src = torch.zeros(size_src).long().to(device)  
             label_tgt = torch.ones(size_tgt).long().to(device)  
             
@@ -240,16 +254,10 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
             target_data = augment_batch(target_data, rot_x=30, rot_y=30, rot_z=60, 
                                         std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
             
-            
+
             #####################################
 
 
-            # make images variable
-#            class_src = class_src.to(device)
-#            images_src = images_src.to(device)
-#            images_tgt = images_tgt.to(device)
-
-            # zero gradients for optimizer
             optimizer.zero_grad()
 
             # prepare iteration data src
@@ -263,7 +271,6 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
                                                               overlap_score12, overlap_score21, gt_partiality_mask12,
                                                               gt_partiality_mask21, src_domain_output, label_src)
             
-            del overlap_score12, overlap_score21, use_feat1, use_feat2, C_pred, source_data
 
             # prepare iteration data tgt
             C_gt = target_data["C_gt"].unsqueeze(0)
@@ -293,7 +300,8 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
         avg_src_disc_loss = sum(src_discriminator_loss) / len(src_discriminator_loss)
         avg_tgt_disc_loss = sum(tgt_discriminator_loss) / len(tgt_discriminator_loss)
 
-        val_loss = []
+        val_loss_src = []
+        val_loss_tgt = []
         val_fmap_loss = []
         val_overlap_loss = []
         val_nce_loss = []
@@ -306,7 +314,7 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
             for i, (source_data, target_data) in enumerate(zip(source_valid_loader, target_valid_loader)):           
                 source_data = shape_to_device(source_data, device)
                 target_data = shape_to_device(target_data, device)
-                
+
                 size_src = [1,2]#len(source_data)
                 size_tgt = [1,2]#len(target_data)
                 label_src = torch.zeros(size_src).long().to(device)  
@@ -355,19 +363,19 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
                 val_nce_loss.append(nce.item())
                 val_src_discriminator_loss.append(src_discriminator.item())
                 val_tgt_discriminator_loss.append(tgt_discriminator.item())        
-        
+
         val_avg_src_train_loss = sum(val_loss_src) / len(val_loss_src)
         val_avg_tgt_train_loss = sum(val_loss_tgt) / len(val_loss_tgt)
         
         val_avg_src_disc_loss = sum(val_src_discriminator_loss) / len(val_src_discriminator_loss)
         val_avg_tgt_disc_loss = sum(val_tgt_discriminator_loss) / len(val_tgt_discriminator_loss)
-        
+        print(f"#epoch:{epoch}, train_loss:{avg_train_loss}, val_loss_src:{val_avg_src_train_loss}, val_loss_tgt:{val_avg_tgt_train_loss}")
+
         scheduler.step(avg_train_loss)    
 
         writer.add_scalar("Loss/train", avg_train_loss, epoch)
-        writer.add_scalar("Loss/val", {val_avg_src_train_loss, val_avg_tgt_train_loss}, epoch)
-
-        
+        writer.add_scalar("Loss/val",  val_avg_src_train_loss, epoch)
+     
 
         writer.add_scalar("Disc src Loss/train", avg_src_disc_loss, epoch)
         writer.add_scalar("Disc src Loss/val", val_avg_src_disc_loss, epoch)
@@ -376,8 +384,7 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
         writer.add_scalar("Disc tgt Loss/val", val_avg_tgt_disc_loss, epoch)
     writer.flush()        
           
-        #if (epoch + 1) % 10 == 0:
-        #    test.tester(encoder, classifier, discriminator, source_test_loader, target_test_loader, training_mode='dann')
+
 
     save_model(model, save_name)
     #visualize(encoder, 'source', save_name)

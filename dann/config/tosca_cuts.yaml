@@ -4,7 +4,7 @@ dataset:
   subset: cuts
   root_source_train: '../data/Tosca_DA/source_train'
   root_target_train: '../data/Tosca_DA/target_train'
-  root_test: '../data/SGP_dataset_off1/test_full'
+  root_test: '../data/SGP_dataset_off/test_full'
   cache_dir: '../data/op_cache'
 
 
@@ -20,7 +20,7 @@ optimizer:
 
 training:
   batch_size: 10
-  epochs: 50
+  epochs: 100
 
 # fmap module params
 fmap:

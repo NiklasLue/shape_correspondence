@@ -7,8 +7,15 @@ import test
 import os
 
 from torch.utils.tensorboard import SummaryWriter
-
-from dann.utils import save_model, set_model_mode, DPFMLoss_da
+from pyFM.spectral import FM_to_p2p
+from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
+from dpfm.model import DPFMNet
+from pyFM.refine import icp
+from pyFM.spectral import FM_to_p2p
+from pyFM.eval.evaluate import accuracy
+from project.cfunctional import CoupledFunctionalMapping
+from project.cfunctional_dpfm import CoupledFunctionalMappingDPFM
+from dann.utils import save_model, set_model_mode, ExtLoss, FrobeniusLoss, DPFMLoss_da
 
 from dann.model import FeatExtractorNet, MapExtractorNet, Discriminator, DPFMNet_DA
 #from utils import visualize
@@ -27,7 +34,7 @@ def FM_batch_eval(batch_data, net, shape1, shape2):
     gt_partiality_mask12, gt_partiality_mask21 = batch_data["gt_partiality_mask12"], batch_data["gt_partiality_mask21"]
 
     # calculate predicted FM and P2P map
-    C_pred, overlap_score12, overlap_score21, use_feat1, use_feat2 = net(batch_data)
+    C_pred, domain_output, overlap_score12, overlap_score21, use_feat1, use_feat2 = net(batch_data, alpha=0)
     _, k1, k2 = C_pred.shape
     p2p_pred = FM_to_p2p(C_pred.detach().cpu().squeeze(0), shape1["evecs"][:, :k1].cpu(), shape2["evecs"][:, :k2].cpu(), use_adj=False, use_ANN=False, n_jobs=1)
     
@@ -69,7 +76,7 @@ def test_target(cfg, target_test_loader, model_path, save_name, predictions_name
         shape1, shape2, p2p_gt = data["shape1"], data["shape2"], data["map21"]
 
         # do iteration
-        p2p_pred, _, _, _, _, _ = FM_batch_eval(data, dpfm_da_net, shape1, shape2)
+        p2p_pred, _, _, _, _, log_obj = FM_batch_eval(data, dpfm_da_net, shape1, shape2)
         
        
         pred_p2p_list.append({'p2p': p2p_pred, 'mesh1': shape1["mesh"], 'mesh2': shape2["mesh"]})#, 'overlap_12': overlap_score12, 'overlap_21': overlap_score21, 'feat1': use_feat1, 'feat2': use_feat2})
@@ -86,11 +93,11 @@ def test_target(cfg, target_test_loader, model_path, save_name, predictions_name
         acc_list.append(mean_dist)
         
     print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
-    torch.save(to_save_list, predictions_name)
+    torch.save(to_save_list, "target_"+predictions_name)
 
     return pred_p2p_list, distances
 
-def test_source(cfg, source_test_loadet, model_path, save_name, predictions_name):
+def test_source(cfg, source_test_loader, model_path, save_name, predictions_name):
     
     print(f"Starting evaluation...")
     if torch.cuda.is_available() and cfg["misc"]["cuda"]:
@@ -119,7 +126,7 @@ def test_source(cfg, source_test_loadet, model_path, save_name, predictions_name
         shape1, shape2, p2p_gt = data["shape1"], data["shape2"], data["map21"]
 
         # do iteration
-        p2p_pred, _, _, _, _, _ = FM_batch_eval(data, dpfm_da_net, shape1, shape2)
+        p2p_pred, _, _, _, _, log_obj = FM_batch_eval(data, dpfm_da_net, shape1, shape2)
         
        
         pred_p2p_list.append({'p2p': p2p_pred, 'mesh1': shape1["mesh"], 'mesh2': shape2["mesh"]})#, 'overlap_12': overlap_score12, 'overlap_21': overlap_score21, 'feat1': use_feat1, 'feat2': use_feat2})
@@ -136,7 +143,7 @@ def test_source(cfg, source_test_loadet, model_path, save_name, predictions_name
         acc_list.append(mean_dist)
         
     print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
-    torch.save(to_save_list, predictions_name)
+    torch.save(to_save_list, "source_"+predictions_name)
 
     return pred_p2p_list, distances    
     
