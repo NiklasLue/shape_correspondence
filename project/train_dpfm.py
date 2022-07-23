@@ -193,7 +193,7 @@ def train_net_unsup(cfg, n_samples=None):
     op_cache_dir = cfg["dataset"]["cache_dir"]
     dataset_path = cfg["dataset"]["root_train"]
 
-    save_dir_name = f'saved_models_{cfg["dataset"]["subset"]}_3'
+    save_dir_name = f'saved_models_{cfg["dataset"]["subset"]}_{cfg["dataset"]["model_name"]}'
     model_save_path = os.path.join(base_path, f"data/{save_dir_name}/ep" + "_{}.pth")
     if not os.path.exists(os.path.join(base_path, f"data/{save_dir_name}/")):
         os.makedirs(os.path.join(base_path, f"data/{save_dir_name}/"))
