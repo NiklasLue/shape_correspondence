@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 from project.dpcfm_model import DPCFMNet
-from  project.dpcfm_utils import DPCFMLoss
+from  project.dpcfm_utils import DPCFMLossV2
 
 from dpfm.utils import augment_batch
 
@@ -65,7 +65,7 @@ def train_net(cfg):
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpcfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
     torch.nn.utils.clip_grad_norm_(dpcfm_net.parameters(), 1)
-    criterion = DPCFMLoss(w_fmap=cfg["loss"]["w_fmap"], w_acc=cfg["loss"]["w_acc"], w_nce=cfg["loss"]["w_nce"],
+    criterion = DPCFMLossV2(w_fmap=cfg["loss"]["w_fmap"], w_acc=cfg["loss"]["w_acc"], w_nce=cfg["loss"]["w_nce"],
                          nce_t=cfg["loss"]["nce_t"], nce_num_pairs=cfg["loss"]["nce_num_pairs"]).to(device)
 
     # Training loop
@@ -101,7 +101,7 @@ def train_net(cfg):
 
             # do iteration
             C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
-            C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
+            
             _, k1, k2 = C_pred1.shape
             evals1 = data["shape1"]["evals"][:k1].unsqueeze(0)
             evals2 = data["shape1"]["evals"][:k2].unsqueeze(0)
