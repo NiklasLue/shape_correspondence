@@ -103,6 +103,8 @@ def train_net(cfg):
             C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
             C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
             _, k1, k2 = C_pred1.shape
+            evals1 = data["shape1"]["evals"][:k1].unsqueeze(0)
+            evals2 = data["shape1"]["evals"][:k2].unsqueeze(0)
             out, fmap, overlap, nce, coup = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2, evals1, evals2,
                              overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
             
