@@ -101,7 +101,9 @@ def train_net(cfg):
 
             # do iteration
             C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
-            out, fmap, overlap, nce, coup = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2,
+            C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
+            _, k1, k2 = C_pred1.shape
+            out, fmap, overlap, nce, coup = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2, evals1, evals2,
                              overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
             
             out.backward()
