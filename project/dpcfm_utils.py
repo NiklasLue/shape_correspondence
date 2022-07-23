@@ -20,7 +20,7 @@ class DPCFMLoss(DPFMLoss):
         self.binary_loss = WeightedBCELoss()
         self.nce_softmax_loss = NCESoftmaxLoss(nce_t, nce_num_pairs)
 
-    def forward(self, C12, C21, C_gt, C_gt2, map21, feat1, feat2, overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21):
+    def forward(self, C12, C21, C_gt, C_gt2, map21, feat1, feat2, evals1, evals2, overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21):
         I = torch.empty(C12.size()).to(C12.device)
         for i in range(I.size(dim=0)):
             J = torch.eye(I.size(dim=1))
