@@ -21,6 +21,13 @@ class DPCFMLoss(DPFMLoss):
         self.nce_softmax_loss = NCESoftmaxLoss(nce_t, nce_num_pairs)
 
     def forward(self, C12, C21, C_gt, C_gt2, map21, feat1, feat2, overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21):
+        I = torch.empty(C12.size()).to(C12.device)
+        for i in range(I.size(dim=0)):
+            J = torch.eye(I.size(dim=1))
+            r = get_rank(evals1[i,:], evals2[i,:])
+            for k in range(r, I.size(dim=1)):
+                J[k,k] = 0
+            I[i] = J
         loss = 0
 
         # fmap loss
@@ -40,8 +47,7 @@ class DPCFMLoss(DPFMLoss):
 
         #coupling loss
         #TODO cut down the rank of identity matrix
-        I = C12 @ C21
-        coup_loss = self.frob_loss(I, torch.eye(I.shape[0]).to(I.device)) * self.w_coup
+        coup_loss = self.frob_loss(torch.bmm(C12, C21), I) * self.w_coup
         loss += coup_loss
         
 

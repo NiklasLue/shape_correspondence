@@ -8,7 +8,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 
-from project.dpcfm_model import DPCFMNet, DPCFMNetV2
+from project.dpcfm_model import DPCFMNet
 from  project.dpcfm_utils import DPCFMLoss
 
 from dpfm.utils import augment_batch
@@ -53,7 +53,7 @@ def train_net(cfg):
         #Can increase num_workers to speed up training
         train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=True, num_workers=0)
         
-        valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=True, num_workers=0)
+        valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=False, num_workers=0)
     elif cfg["dataset"]["name"] == "faust":
         raise NotImplementedError("FAUST support will come soon!")
     else:
@@ -61,7 +61,7 @@ def train_net(cfg):
 
     # define model
     #dpcfm_net = DPCFMNet(cfg).to(device)
-    dpcfm_net = DPCFMNetV2(cfg).to(device)
+    dpcfm_net = DPCFMNet(cfg).to(device)
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpcfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
     torch.nn.utils.clip_grad_norm_(dpcfm_net.parameters(), 1)
@@ -133,7 +133,9 @@ def train_net(cfg):
         val_nce_loss = []
         val_coup_loss = []
         # val_loss = 0.0
-        dpcfm_net.eval()     # Optional when not using Model Specific layer
+        dpcfm_net.eval() 
+
+        # Optional when not using Model Specific layer
         for i, data in enumerate(valid_loader):
             data = shape_to_device(data, device)
 
@@ -149,7 +151,10 @@ def train_net(cfg):
 
             #calculate validation loss after each epoch
             C_pred1, C_pred2, overlap_score12, overlap_score21, use_feat1, use_feat2 = dpcfm_net(data)
-            out, fmap, overlap, nce, coup = criterion(C_gt, C_gt2, C_pred1, C_pred2, map21, use_feat1, use_feat2,
+            _, k1, k2 = C_pred1.shape
+            evals1 = data["shape1"]["evals"][:k1].unsqueeze(0)
+            evals2 = data["shape1"]["evals"][:k2].unsqueeze(0)
+            out, fmap, overlap, nce, coup = criterion(C_pred1, C_pred2, C_gt, C_gt2, map21, use_feat1, use_feat2, evals1, evals2,
                             overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
 
             val_loss.append(out.item())
