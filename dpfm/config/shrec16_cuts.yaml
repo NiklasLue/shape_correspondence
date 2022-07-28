@@ -2,9 +2,9 @@
 dataset:
   name: shrec16
   subset: cuts
-  root_train: ../../data/shrec_partial_train
-  root_test: ../../data/shrec_partial_test
-  cache_dir: ../../data/op_cache
+  root_train: "../../data/shrec_partial_train"
+  root_test: "../../data/shrec_partial_test"
+  cache_dir: "../../data/op_cache"
 
 
 
@@ -49,6 +49,13 @@ loss:
   w_nce: 0.0
   nce_t: 0.07
   nce_num_pairs: 4096
+  
+# loss params unsupervised model
+loss_unsup:
+  w_bij: 1
+  w_orth_C1: 1
+  w_orth_C2: 1
+  w_diff: 0  
 
 # misc
 misc:
