@@ -176,6 +176,7 @@ class FaustRep:
             # self.sample_list.append((idx0, idx1, dists))
 
         all_combs = [i for subset in itertools.combinations(self.used_shapes, 2) for i in (subset, tuple(reversed(subset)))]
+        all_combs = all_combs[::2]
         self.corres_dict = {}
         for x, y in all_combs:
             map_ = torch.tensor(range(len(self.verts_list[self.used_shapes.index(y)]))).long()
