@@ -602,7 +602,7 @@ class Tosca(Dataset):
                 gt_map12 = map_hr_re[map_x_hr]
                 # get map from null to partial if use_adj == False, i.e. p2p map describes mesh2 -> mesh1
                 if not self.use_adj:
-                    # create list of zeros with length = number of vertices on null shape
+                    # create list of -1's with length = number of vertices on null shape
                     gt_map21 = list([-1] * len(self.verts_list[(len(self.used_shapes) + self.null_shapes.index(y))]))
                     for j, i in enumerate(gt_map12):
                         gt_map21[i] = j
@@ -695,8 +695,10 @@ class Tosca(Dataset):
         C_gt = trans_evec2 @ P @ evec_1
 
         # compute region labels
+        map12 = torch.Tensor([-1] * shape1["xyz"].size(0))
+        map12[map21] = torch.Tensor(range(map21.size(0)))
         gt_partiality_mask12 = torch.zeros(shape1["xyz"].size(0)).long().detach()
-        gt_partiality_mask12[map21[map21 != -1]] = 1
+        gt_partiality_mask12[map12 != -1] = 1
         gt_partiality_mask21 = torch.zeros(shape2["xyz"].size(0)).long().detach()
         gt_partiality_mask21[map21 != -1] = 1
 
