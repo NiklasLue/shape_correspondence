@@ -72,19 +72,19 @@ class DPFMLoss(nn.Module):
         loss = 0
 
         # fmap loss
-        fmap_loss = self.frob_loss(C12, C_gt) * self.w_fmap
-        loss += fmap_loss
+        fmap_loss = self.frob_loss(C12, C_gt)
+        loss += fmap_loss  * self.w_fmap
 
         # overlap loss
-        acc_loss = self.binary_loss(overlap_score12, gt_partiality_mask12.float()) * self.w_acc
-        acc_loss += self.binary_loss(overlap_score21, gt_partiality_mask21.float()) * self.w_acc
-        loss += acc_loss
+        acc_loss = self.binary_loss(overlap_score12, gt_partiality_mask12.float())
+        # acc_loss += self.binary_loss(overlap_score21, gt_partiality_mask21.float()) 
+        loss += acc_loss * self.w_acc
 
         # nce loss
-        nce_loss = self.nce_softmax_loss(feat1, feat2, map21) * self.w_nce
-        loss += nce_loss
+        nce_loss = self.nce_softmax_loss(feat1, feat2, map21)
+        loss += nce_loss * self.w_nce
 
-        return loss
+        return loss, fmap_loss, acc_loss, nce_loss
 
 
 def get_mask(evals1, evals2, gamma=0.5, device="cpu"):

@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import itertools
+import random
 
 import numpy as np
 import potpourri3d as pp3d
@@ -291,7 +292,7 @@ class ShrecPartialDataset(Dataset):
 
         # Load the meshes & labels
         # define files and order
-        self.used_shapes = sorted([x.stem for x in (Path(root_dir) / "shapes").iterdir() if name in x.stem])
+        self.used_shapes = sorted([x.stem for x in (Path(root_dir) / "shapes").iterdir() if name in x.stem and ".DS_Store" not in x.stem])
         corres_path = Path(root_dir) / "maps"
         all_combs = [x.stem for x in corres_path.iterdir() if name in x.stem]
         self.corres_dict = {}
@@ -411,6 +412,8 @@ class ShrecPartialDataset(Dataset):
     def __getitem__(self, idx):
         idx1, idx2 = self.combinations[idx]
 
+        meshes = self.load_trimesh(idx)
+
         shape1 = {
             "xyz": self.verts_list[idx1],
             "faces": self.faces_list[idx1],
@@ -423,6 +426,7 @@ class ShrecPartialDataset(Dataset):
             "gradY": self.gradY_list[idx1],
             "name": self.used_shapes[idx1],
             "sample_idx": self.sample_list[idx1],
+            "mesh": meshes[0]
         }
 
         shape2 = {
@@ -437,12 +441,14 @@ class ShrecPartialDataset(Dataset):
             "gradY": self.gradY_list[idx2],
             "name": self.used_shapes[idx2],
             "sample_idx": self.sample_list[idx2],
+            "mesh": meshes[1]
         }
 
         # Compute fmap
         map21 = self.corres_dict[(idx1, idx2)]
 
-        evec_1, evec_2, mass2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap], shape2["mass"]
+        evec_1, evec_2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap]
+        mass1, mass2 = shape1["mass"], shape2["mass"]
         trans_evec2 = evec_2.t() @ torch.diag(mass2)
 
         # If the size of the map vector is too long, shorten it
@@ -454,21 +460,24 @@ class ShrecPartialDataset(Dataset):
         P = torch.zeros(evec_2.size(0), evec_1.size(0))
         P[range(evec_2.size(0)), map21.flatten()] = 1
         C_gt = trans_evec2 @ P @ evec_1
-
+        
+        trans_evec1 = evec_1.t() @ torch.diag(mass1)
+        C2_gt = trans_evec1 @ P.t() @ evec_2
+        
         # compute region labels
         gt_partiality_mask12 = torch.zeros(shape1["xyz"].size(0)).long().detach()
         gt_partiality_mask12[map21[map21 != -1]] = 1
         gt_partiality_mask21 = torch.zeros(shape2["xyz"].size(0)).long().detach()
         gt_partiality_mask21[map21 != -1] = 1
 
-        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt,
+        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt, "C2_gt": C2_gt,
                 "map21": map21, "gt_partiality_mask12": gt_partiality_mask12, "gt_partiality_mask21": gt_partiality_mask21}
 
 class Tosca(Dataset):
     """
     Download dataset from https://vision.in.tum.de/data/datasets/partial
     """
-    def __init__(self, path, name="cuts", selected=False, use_adj=False, k_eig=128, n_fmap=30, op_cache_dir=None, use_cache=True, verbose=True):
+    def __init__(self, path, name="cuts", selected=False, use_adj=False, k_eig=128, n_fmap=30, n_samples=None, op_cache_dir=None, use_cache=True, verbose=True):
         super().__init__(path, use_adj=use_adj)
 
         self.k_eig = k_eig
@@ -500,6 +509,10 @@ class Tosca(Dataset):
                     self.sample_list,
                 ) = torch.load(load_cache)
                 self.combinations = list(self.corres_dict.keys())
+
+                if n_samples is not None:
+                    self.combinations = random.sample(self.combinations, n_samples)
+
                 return
             if verbose:
                 print("  --> dataset not in cache, repopulating")
@@ -593,7 +606,7 @@ class Tosca(Dataset):
                 gt_map12 = map_hr_re[map_x_hr]
                 # get map from null to partial if use_adj == False, i.e. p2p map describes mesh2 -> mesh1
                 if not self.use_adj:
-                    # create list of zeros with length = number of vertices on null shape
+                    # create list of -1's with length = number of vertices on null shape
                     gt_map21 = list([-1] * len(self.verts_list[(len(self.used_shapes) + self.null_shapes.index(y))]))
                     for j, i in enumerate(gt_map12):
                         gt_map21[i] = j
@@ -608,6 +621,9 @@ class Tosca(Dataset):
 
         # set combinations
         self.combinations = list(self.corres_dict.keys())
+
+        if n_samples is not None:
+            self.combinations = random.sample(self.combinations, n_samples)
 
         # update used_shapes
         self.used_shapes = self.used_shapes + self.null_shapes
@@ -675,13 +691,17 @@ class Tosca(Dataset):
         # Compute fmap
         map21 = self.corres_dict[(idx1, idx2)]
 
-        evec_1, evec_2, mass1, mass2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap], shape1["mass"], shape2["mass"]
+        evec_1, evec_2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap]
+        mass1, mass2 = shape1["mass"], shape2["mass"]
         trans_evec2 = evec_2.t() @ torch.diag(mass2)
 
         P = torch.zeros(evec_2.size(0), evec_1.size(0))
         P[range(evec_2.size(0)), map21.flatten()] = 1
 
         C_gt = trans_evec2 @ P @ evec_1
+        
+        trans_evec1 = evec_1.t() @ torch.diag(mass1)
+        C2_gt = trans_evec1 @ P.t() @ evec_2
 
         #compute ground truth functional map from full to partial
         # see https://arxiv.org/abs/2110.09994
@@ -690,12 +710,14 @@ class Tosca(Dataset):
 
 
         # compute region labels
+        map12 = torch.Tensor([-1] * shape1["xyz"].size(0))
+        map12[map21] = torch.Tensor(range(map21.size(0)))
         gt_partiality_mask12 = torch.zeros(shape1["xyz"].size(0)).long().detach()
-        gt_partiality_mask12[map21[map21 != -1]] = 1
+        gt_partiality_mask12[map12 != -1] = 1
         gt_partiality_mask21 = torch.zeros(shape2["xyz"].size(0)).long().detach()
         gt_partiality_mask21[map21 != -1] = 1
 
-        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt, "C_gt2": C_gt2,
+        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt, "C2_gt": C2_gt,
                 "map21": map21, "gt_partiality_mask12": gt_partiality_mask12, "gt_partiality_mask21": gt_partiality_mask21}
 
 

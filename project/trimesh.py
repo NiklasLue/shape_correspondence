@@ -5,6 +5,10 @@ import trimesh
 from pyFM.mesh import file_utils
 from pyFM.mesh.trimesh import TriMesh
 from .utils import read_ply
+import robust_laplacian
+import potpourri3d as pp3d
+import scipy
+import numpy as np
 
 class TriMeshPly(TriMesh):
     """
@@ -96,3 +100,74 @@ class TriMeshPly(TriMesh):
         super()._init_all_attributes()
 
         self._triangle_vertices = None
+        
+    def laplacian_spectrum(self, k, intrinsic=False, return_spectrum=True, robust=False, verbose=False):
+        """
+        Compute the Laplace Beltrami Operator and its spectrum.
+        Consider using the .process() function for easier use !
+
+        Parameters
+        -------------------------
+        K               : int - number of eigenvalues to compute
+        intrinsic       : bool - Use intrinsic triangulation
+        robust          : bool - use tufted laplacian
+        return_spectrum : bool - Whether to return the computed spectrum
+
+        Output
+        -------------------------
+        eigenvalues, eigenvectors : (k,), (n,k) - Only if return_spectrum is True.
+        """
+        eps = 1e-8
+        
+        if self.facelist is None:
+            robust = True
+
+        if robust:
+            mollify_factor = 1e-5
+        elif intrinsic:
+            mollify_factor = 0
+
+        if robust or intrinsic:
+            self._intrinsic = intrinsic
+            if self.facelist is not None:
+                self.W, self.A = robust_laplacian.mesh_laplacian(self.vertlist, self.facelist, mollify_factor=mollify_factor)
+            else:
+                self.W, self.A = robust_laplacian.point_cloud_laplacian(self.vertlist, mollify_factor=mollify_factor)
+
+        else:
+            self.W = pp3d.cotan_laplacian(self.vertlist, self.facelist, denom_eps=1e-10)
+            self.A = pp3d.vertex_areas(self.vertlist, self.facelist)
+            self.A += eps * np.mean(self.A)
+            self.A = scipy.sparse.diags(self.A)
+
+        # If k is 0, stop here
+        
+        if k > 0:
+            # Prepare matrices
+            L_eigsh = (self.W + scipy.sparse.identity(self.W.shape[0]) * eps).tocsc()
+            Mmat = self.A
+            eigs_sigma = eps
+
+            failcount = 0
+            while True:
+                try:
+                    # We would be happy here to lower tol or maxiter since we don't need these to be super precise,
+                    # but for some reason those parameters seem to have no effect
+                    self.eigenvalues, self.eigenvectors = scipy.sparse.linalg.eigsh(
+                        L_eigsh, k=k, M=Mmat, sigma=eigs_sigma
+                    )
+
+                    # Clip off any eigenvalues that end up slightly negative due to numerical weirdness
+                    self.eigenvalues = np.clip(self.eigenvalues, a_min=0.0, a_max=float("inf"))
+
+                    break
+                except Exception as e:
+                    print(e)
+                    if failcount > 3:
+                        raise ValueError("failed to compute eigendecomp")
+                    failcount += 1
+                    print("--- decomp failed; adding eps ===> count: " + str(failcount))
+                    
+                
+            if return_spectrum:
+                return self.eigenvalues, self.eigenvectors

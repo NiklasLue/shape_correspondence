@@ -2,9 +2,9 @@
 dataset:
   name: shrec16
   subset: holes
-  root_train: ../../data/shrec_partial_train
-  root_test: ../../data/shrec_partial_test
-  cache_dir: ../../data/op_cache
+  root_train: '../../data/shrec_partial_train'
+  root_test: '../../data/shrec_partial_test'
+  cache_dir: '../../data/op_cache'
 
 
 

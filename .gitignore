@@ -1,6 +1,9 @@
 **/__pycache__
 .ipynb_checkpoints/*
-data/eval
+data/eval/*
 .vscode
 **/.DS_Store
 project/data/
+.pai_simulator
+settings.yaml
+runs/*
