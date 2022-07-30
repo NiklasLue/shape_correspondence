@@ -703,12 +703,6 @@ class Tosca(Dataset):
         trans_evec1 = evec_1.t() @ torch.diag(mass1)
         C2_gt = trans_evec1 @ P.t() @ evec_2
 
-        #compute ground truth functional map from full to partial
-        # see https://arxiv.org/abs/2110.09994
-        trans_evec1 = evec_1.t() @ torch.diag(mass1)
-        C_gt2 = trans_evec1 @ P.t() @ evec_2
-
-
         # compute region labels
         map12 = torch.Tensor([-1] * shape1["xyz"].size(0))
         map12[map21] = torch.Tensor(range(map21.size(0)))
