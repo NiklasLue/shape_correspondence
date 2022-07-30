@@ -131,7 +131,14 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
             acc_list.append(accuracy(p2p_pred, p2p_gt.cpu(), mesh1_geod, sqrt_area=mesh1_sqrt_area))
         
     print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
-    torch.save(to_save_list, predictions_name)
+    save_obj = {"log_obj": to_save_list, "accuracy": acc_list}
+
+    if return_dist:
+        save_obj["distances"] = distances
+    if return_pred_p2p:
+        save_obj["pred_p2p"] = pred_p2p_list
+    
+    torch.save(save_obj, predictions_name)
 
     if return_pred_p2p and return_dist:
         return pred_p2p_list, distances
