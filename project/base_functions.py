@@ -10,6 +10,7 @@ def L21(X):
 def L21_grad(X):
     return 0
 
+
 def oplist_commutation_C2(C, op_list):
     """
     Compute the operator commutativity constraint for a list of pairs of operators
@@ -29,6 +30,7 @@ def oplist_commutation_C2(C, op_list):
         energy += op_commutation(C, op2, op1)
 
     return energy
+
 
 def oplist_commutation_grad_C2(C, op_list):
     """
@@ -71,10 +73,7 @@ def oplist_commutation_t(C, op_list):
     return energy
 
 
-
-
-
-def loss(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient): 
+def loss(C, A, B, I, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient): 
     """
     Evaluation of the loss for coupled functional maps computation
     Parameters:
@@ -97,8 +96,6 @@ def loss(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_
     C1, C2 = C[0:len(C)//2], C[len(C)//2 : len(C)]
     
     C1, C2 = np.reshape(C1, (k2,k1)), np.reshape(C2, (k1,k2))
-    
-    I = np.identity(k2)
     
     loss = 0
     
@@ -123,11 +120,10 @@ def loss(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_
         loss += mu_orient * (oplist_commutation(C1, orient_op) + oplist_commutation_C2(C2, orient_op)) #oplist_commutation(C2.T, orient_op)
                      
     return loss 
-                     
+
+
 # (set up gradient of loss function -> for optimizer)
-
-
-def loss_grad(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient):
+def loss_grad(C, A, B, I, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient):
     """
     Evaluation of the gradient of the loss for coupled functional maps computation
 
@@ -149,9 +145,6 @@ def loss_grad(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB
     C1, C2 = C[0:len(C)//2], C[len(C)//2 : len(C)]
     
     C1, C2 = np.reshape(C1, (k2,k1)), np.reshape(C2, (k1,k2))
-    
-    I = np.identity(k2)
-    
     
     grad_C1 = 0
     grad_C2 = 0
@@ -178,5 +171,3 @@ def loss_grad(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB
     
    
     return np.concatenate((grad_C1.ravel(),grad_C2.ravel()))
-
-

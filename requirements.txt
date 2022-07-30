@@ -1,0 +1,14 @@
+matplotlib==3.5.1
+numpy==1.21.5
+open3d==0.15.2
+pandas==1.4.2
+potpourri3d==0.0.7
+pynndescent==0.5.7
+PyYAML==6.0
+robust_laplacian==0.2.4
+scikit_learn==1.1.1
+scipy==1.8.0
+tensorboard==2.6.0
+torch==1.11.0
+tqdm==4.64.0
+trimesh==3.12.0

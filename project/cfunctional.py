@@ -300,9 +300,12 @@ class CoupledFunctionalMapping:
           
         # Compute mask for regularization
         mask = self.get_mask(optmask)
+        
+        # Get identity matrix for coupling loss
+        I = np.identity(self.k2)
 
         # Arguments for the optimization problem
-        args = (descr1_red, descr2_red, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient) # to add weight matrix W
+        args = (descr1_red, descr2_red, I, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient)
         
         # Initialization of C1 and C2
         C1, C2 = self.get_x0(optinit, descr1_red, descr2_red, mu_mask)         
@@ -331,14 +334,14 @@ class CoupledFunctionalMapping:
         
         return mask
         
-    def resolvent_matrix(self, e1,e2):
+    def resolvent_matrix(self, e1, e2):
         maxev = max(np.max(e1), np.max(e2))
         e1 /= maxev
         e2 /= maxev
         gamma = 0.5
         mre = (np.nan_to_num(np.power(e2, gamma))/ (np.nan_to_num(np.power(e2, 2 * gamma))+1))[:self.k2, None] - (np.nan_to_num(np.power(e1, gamma))/ (np.nan_to_num(np.power(e1, 2 * gamma))+1))[None, :self.k1]
         mim = (1/ (np.nan_to_num(np.power(e2, 2 * gamma))+1))[:self.k2, None] - (1/ (np.nan_to_num(np.power(e1, 2 *gamma))+1))[None, :self.k1]
-        mask = np.nan_to_num(np.square(mim) + np.square(mim))
+        mask = np.nan_to_num(np.square(mre) + np.square(mim))
         return mask
         
     def slanted_matrix(self, e1, e2):
