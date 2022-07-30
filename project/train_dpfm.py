@@ -34,7 +34,7 @@ def train_net(cfg, n_samples=None):
     if cfg["dataset"]["name"] == "shrec16":
         train_dataset = ShrecPartialDataset(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                             n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir)
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=None, shuffle=True, num_workers=0)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=None, shuffle=True)
     elif cfg["dataset"]["name"] == "tosca":
         train_dataset = Tosca(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                             n_fmap=cfg["fmap"]["n_fmap"], n_samples=n_samples, use_cache=True, op_cache_dir=op_cache_dir, use_adj=True)
