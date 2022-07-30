@@ -259,7 +259,7 @@ class CoupledFunctionalMappingDPFM:
         return mask.detach().cpu().numpy()
         
     def resolvent_matrix(self, evals1, evals2, device="cpu", gamma=0.5):
-        scaling_factor = max(torch.max(evals1), torch.max(evals2))
+        scaling_factor = max(torch.max(evals1), torch.max(evals2)).to(device)
         evals1, evals2 = evals1.to(device) / scaling_factor, evals2.to(device) / scaling_factor
         evals_gamma1, evals_gamma2 = (evals1 ** gamma)[None, :], (evals2 ** gamma)[:, None]
 
