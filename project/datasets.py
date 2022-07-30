@@ -697,6 +697,7 @@ class Tosca(Dataset):
 
         P = torch.zeros(evec_2.size(0), evec_1.size(0))
         P[range(evec_2.size(0)), map21.flatten()] = 1
+
         C_gt = trans_evec2 @ P @ evec_1
         
         trans_evec1 = evec_1.t() @ torch.diag(mass1)
