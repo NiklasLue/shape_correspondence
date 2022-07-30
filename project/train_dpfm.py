@@ -24,7 +24,7 @@ def train_net(cfg, n_samples=None):
     op_cache_dir = cfg["dataset"]["cache_dir"]
     dataset_path = cfg["dataset"]["root_train"]
 
-    save_dir_name = f'saved_models_{cfg["dataset"]["subset"]}_3'
+    save_dir_name = f'saved_models_{cfg["dataset"]["subset"]}_{cfg["dataset"]["model_name"]}'
     model_save_path = os.path.join(base_path, f"data/{save_dir_name}/ep" + "_{}.pth")
     if not os.path.exists(os.path.join(base_path, f"data/{save_dir_name}/")):
         os.makedirs(os.path.join(base_path, f"data/{save_dir_name}/"))
@@ -34,7 +34,7 @@ def train_net(cfg, n_samples=None):
     if cfg["dataset"]["name"] == "shrec16":
         train_dataset = ShrecPartialDataset(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                             n_fmap=cfg["fmap"]["n_fmap"], use_cache=True, op_cache_dir=op_cache_dir)
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=None, shuffle=True)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=None, shuffle=True, num_workers=0)
     elif cfg["dataset"]["name"] == "tosca":
         train_dataset = Tosca(dataset_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                             n_fmap=cfg["fmap"]["n_fmap"], n_samples=n_samples, use_cache=True, op_cache_dir=op_cache_dir, use_adj=True)
@@ -43,7 +43,7 @@ def train_net(cfg, n_samples=None):
         train_size = int(0.8 * len(train_dataset))
         val_size = len(train_dataset) - train_size
         
-        train, val = torch.utils.data.random_split(train_dataset, [train_size, val_size])
+        train, val = torch.utils.data.random_split(train_dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42))
         
         #Can increase num_workers to speed up training
         train_loader = torch.utils.data.DataLoader(train, batch_size=None, shuffle=True, num_workers=0)
@@ -56,6 +56,19 @@ def train_net(cfg, n_samples=None):
 
     # define model
     dpfm_net = DPFMNet(cfg).to(device)
+
+    # if we are given a pretrained model, load the feature refiner and overlap predictor
+    # NOTE: quick fix since we are not able to train the overlap predictor with the given code
+    if "pretrained_state_dict" in cfg.keys():
+        pretrained_sd = torch.load(f"{cfg['pretrained_state_dict']}", map_location=device) 
+        model_dict = dpfm_net.state_dict()
+        # 1. filter out unnecessary keys
+        pretrained_sd = {k: v for k, v in pretrained_sd.items() if k in model_dict and k.split(".")[0] == "feat_refiner"}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_sd) 
+        # 3. load the new state dict
+        dpfm_net.load_state_dict(model_dict)
+
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
     criterion = DPFMLoss(w_fmap=cfg["loss"]["w_fmap"], w_acc=cfg["loss"]["w_acc"], w_nce=cfg["loss"]["w_nce"],
@@ -66,7 +79,7 @@ def train_net(cfg, n_samples=None):
     iterations = 0
     lrs = []
     lambda1 = lambda epoch: 0.65 ** epoch
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=5, verbose=True)
     # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1, verbose=True)
     writer = SummaryWriter()
 
@@ -96,7 +109,7 @@ def train_net(cfg, n_samples=None):
                              overlap_score12, overlap_score21, gt_partiality_mask12, gt_partiality_mask21)
             
             out.backward()
-            torch.nn.utils.clip_grad_norm_(dpfm_net.parameters(), 1)
+            # torch.nn.utils.clip_grad_norm_(dpfm_net.parameters(), 1)
             optimizer.step()
             optimizer.zero_grad()
             train_loss.append(out.item())

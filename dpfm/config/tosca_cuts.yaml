@@ -5,6 +5,7 @@ dataset:
   root_train: '{{ABS_PATH}}/data/SGP_dataset_off/train'
   root_test: '{{ABS_PATH}}/data/SGP_dataset_off/test'
   cache_dir: '{{ABS_PATH}}/data/op_cache'
+  model_name: test
   
 # if the pre-trained overlap predictor and cross attention module should not be used, comment out 'pretrained_state_dict'
 pretrained_state_dict: 'project/data/shrec_pretrained_model/shrec_cuts.pth'
