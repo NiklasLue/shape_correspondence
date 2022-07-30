@@ -123,7 +123,7 @@ class CoupledFunctionalMappingDPFM:
 
         return p2p
     
-    def fit(self, shape1 , shape2, mu_pres = 1, mu_coup = 1e-1, mu_mask = 0, mu_des = 0, mu_orient = 0, orient_reversing=False, optinit='zeros', optmask = 'lbo', subsample_step=1, verbose=False):
+    def fit(self, shape1 , shape2, mu_pres = 1, mu_coup = 1e-1, mu_mask = 0, mu_des = 0, mu_orient = 0, orient_reversing=False, optinit='zeros', optmask = 'lbo', rank = True, subsample_step=1, verbose=False):
         """
         Solves the functional map optimization problem :
 
@@ -204,12 +204,21 @@ class CoupledFunctionalMappingDPFM:
 
         self.descr1 = self.descr1.detach().cpu().numpy()
         self.descr2 = self.descr2.detach().cpu().numpy()
+        
+        # Identity matrix for coupling loss (including rank computation)
+        I = np.identity(self.k2)
+        if rank:
+            e1, e2 = self.shape1["evals"][:self.k1],  self.shape2["evals"][:self.k2]
+            max_e1 = max(e1)
+            est_rank = sum([ev - max_e1 < 0 for ev in e2])
+            for k in range(est_rank, self.k2):
+                I[k,k] = 0
 
         # Arguments for the optimization problem
-        args = (descr1_red, descr2_red, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient) # to add weight matrix W
+        args = (descr1_red, descr2_red, I, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient) # to add weight matrix W
         
         # Initialization of C1 and C2
-        C1, C2 = self.get_x0(optinit, descr1_red = descr1_red, descr2_red = descr2_red, mu_LB = mu_mask)         
+        C1, C2 = self.get_x0(optinit, descr1_red = descr1_red, descr2_red = descr2_red, mu_mask = mu_mask, mask = mask)         
         
         # Optimization
         res = minimize(loss, torch.concat((C1.ravel(), C2.ravel())), method = 'L-BFGS-B', jac=loss_grad, args=args)
@@ -250,7 +259,7 @@ class CoupledFunctionalMappingDPFM:
         return mask.detach().cpu().numpy()
         
     def resolvent_matrix(self, evals1, evals2, device="cpu", gamma=0.5):
-        scaling_factor = max(torch.max(evals1), torch.max(evals2))
+        scaling_factor = max(torch.max(evals1), torch.max(evals2)).to(device)
         evals1, evals2 = evals1.to(device) / scaling_factor, evals2.to(device) / scaling_factor
         evals_gamma1, evals_gamma2 = (evals1 ** gamma)[None, :], (evals2 ** gamma)[:, None]
 
@@ -275,15 +284,13 @@ class CoupledFunctionalMappingDPFM:
                 W[i,j] = torch.exp(-0.03*torch.sqrt(torch.tensor(i**2 + j**2)))*torch.linalg.norm(torch.cross(direction, torch.tensor([i, j, 0], dtype=torch.float32)-origin))
         return W
         
-    def get_x0(self, optinit="zeros", descr1_red = 0, descr2_red = 0, mu_LB = 0):
+    def get_x0(self, optinit, descr1_red = 0, descr2_red = 0, mu_mask = 0, mask = 0):
         """
         Returns the initial functional map for optimization. not used but could be
 
         Parameters
         ------------------------
         optinit : 'random' | 'identity' | 'zeros' initialization.
-                  In any case, the first column of the functional map is computed by hand
-                  and not modified during optimization
 
         Output
         ------------------------
@@ -294,15 +301,20 @@ class CoupledFunctionalMappingDPFM:
         ev2 = self.shape2["evals"]
 
         if optinit == 'nocoup': # Linear-system initialization (solution of C1 and C2 if coupling is removed)
-            e1, e2 = ev1[:self.k1].detach().cpu().numpy(),  ev2[:self.k2].detach().cpu().numpy()
-            maxev =  max(np.max(e1), np.max(e2))
-            e1 /= maxev
-            e2 /= maxev
+#             e1, e2 = ev1[:self.k1].detach().cpu().numpy(),  ev2[:self.k2].detach().cpu().numpy()
+#             maxev =  max(np.max(e1), np.max(e2))
+#             e1 /= maxev
+#             e2 /= maxev 
+            A_A_t = descr1_red @ descr1_red.T
+            B_A_t = descr2_red @ descr1_red.T
+            B_B_t = descr2_red @ descr2_red.T
+            A_B_t = descr1_red @ descr2_red.T
+            mask_t = mask.T
             C1, C2 = np.zeros((self.k2, self.k1)), np.zeros((self.k1, self.k2))
             for i in range(self.k2):
-                C1[i] = np.linalg.solve(descr1_red @ descr1_red.T + mu_LB * np.diag(np.square(e1 - e2[i])), descr1_red @ descr2_red[i]) #ev_sqdiff.T[i]
+                C1[i] = np.linalg.solve(A_A_t + mu_mask * np.diag(mask[i]), B_A_t[i]) # np.square(e1 - e2[i])
             for i in range(self.k1):
-                C2[i] = np.linalg.solve(descr2_red @ descr2_red.T + mu_LB * np.diag(np.square(e2 - e1[i])), descr2_red @ descr1_red[i]) 
+                C2[i] = np.linalg.solve(B_B_t + mu_mask * np.diag(mask_t[i]), A_B_t[i]) 
             C1, C2 = torch.tensor(C1), torch.tensor(C2)
         elif optinit == 'identity': # Close-to-identity initialization
             C1, C2 = torch.eye(self.k2, self.k1), torch.eye(self.k1, self.k2)

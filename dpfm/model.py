@@ -193,13 +193,11 @@ class DPFMNet(nn.Module):
         )
 
         # cross attention refinement
-        self.feat_refiner = CrossAttentionRefinementNet(n_in=cfg["fmap"]["n_feat"], num_head=cfg["attention"]["num_head"], 
-                                                        gnn_dim=cfg["attention"]["gnn_dim"],
+        self.feat_refiner = CrossAttentionRefinementNet(n_in=cfg["fmap"]["n_feat"], num_head=cfg["attention"]["num_head"], gnn_dim=cfg["attention"]["gnn_dim"],
                                                         overlap_feat_dim=cfg["overlap"]["overlap_feat_dim"],
                                                         n_layers=cfg["attention"]["ref_n_layers"],
                                                         cross_sampling_ratio=cfg["attention"]["cross_sampling_ratio"],
                                                         attention_type=cfg["attention"]["attention_type"])
-       
         # regularized fmap
         self.fmreg_net = RegularizedFMNet(lambda_=cfg["fmap"]["lambda_"], resolvant_gamma=cfg["fmap"]["resolvant_gamma"])
         self.n_fmap = cfg["fmap"]["n_fmap"]
@@ -223,7 +221,6 @@ class DPFMNet(nn.Module):
 
         # refine features
         ref_feat1, ref_feat2, overlap_score12, overlap_score21 = self.feat_refiner(verts1, verts2, feat1, feat2, batch)
-
         use_feat1, use_feat2 = (ref_feat1, ref_feat2) if self.robust else (feat1, feat2)
         # predict fmap
         evecs_trans1, evecs_trans2 = evecs1.t()[:self.n_fmap] @ torch.diag(mass1), evecs2.t()[:self.n_fmap] @ torch.diag(mass2)
@@ -231,6 +228,3 @@ class DPFMNet(nn.Module):
         C_pred = self.fmreg_net(use_feat1, use_feat2, evals1, evals2, evecs_trans1, evecs_trans2)
 
         return C_pred, overlap_score12, overlap_score21, use_feat1, use_feat2
-
-    
-
