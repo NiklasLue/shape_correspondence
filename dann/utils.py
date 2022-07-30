@@ -142,8 +142,8 @@ def save_model(model, save_name):
     save_folder = 'trained_models'
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
-
-    torch.save(model.state_dict(), 'trained_models/try1' + '_' + str(save_name) + '.pt')
+    
+    torch.save(model.state_dict(), 'models/da_models/source' + '_' + str(save_name) + '.pt')
 
     print('Model is saved !!!')
     

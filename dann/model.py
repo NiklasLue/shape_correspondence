@@ -123,6 +123,7 @@ class Discriminator(nn.Module):
         
         return F.softmax(x,dim=1)
 
+    
 class DPFMNet_DA(nn.Module):
     """Compute the functional map matrix representation."""
 
@@ -134,7 +135,7 @@ class DPFMNet_DA(nn.Module):
             C_in=cfg["fmap"]["C_in"],
             C_out=cfg["fmap"]["n_feat"],
             C_width=128,
-            N_block=4,
+            N_block=2,
             dropout=True,
             with_gradient_features=True,
             with_gradient_rotations=True,
@@ -170,13 +171,11 @@ class DPFMNet_DA(nn.Module):
         feat2 = self.feature_extractor(features2, mass2, L=L2, evals=evals2, evecs=evecs2,
                                        gradX=gradX2, gradY=gradY2, faces=faces2).unsqueeze(0)
         
-        del gradX1, gradX2, gradY1, gradY2
         torch.cuda.empty_cache()
         # refine features
         ref_feat1, ref_feat2, overlap_score12, overlap_score21 = self.feat_refiner(verts1, verts2, feat1, feat2, batch)
         use_feat1, use_feat2 = (ref_feat1, ref_feat2) if self.robust else (feat1, feat2)
         torch.cuda.empty_cache()
-        del feat1, feat2
         # predict fmap
         evecs_trans1, evecs_trans2 = evecs1.t()[:self.n_fmap] @ torch.diag(mass1), evecs2.t()[:self.n_fmap] @ torch.diag(mass2)
         evals1, evals2 = evals1[:self.n_fmap], evals2[:self.n_fmap]

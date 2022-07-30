@@ -21,10 +21,23 @@ def main(source_domain_path, target_domain_path, cfg, n_samples=None):
     ########################
     ## Source dataloader  ##
     ########################
+    '''
+    Ideal structure
+    if source_dataset == 'tosca':
+        source_dataset = ...
+        
+        
+    elif source_dataset == 'shrec16':
+        source_dataset = ...
+        
+        
+    else:
+        raise NotImplementedError("dataset not implemented!")
+    '''
     
     source_dataset = Tosca(source_domain_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
-                                        n_fmap=cfg["fmap"]["n_fmap"], n_samples=n_samples, use_cache=True,
-                           op_cache_dir=op_cache_dir, use_adj=True)
+                                            n_fmap=cfg["fmap"]["n_fmap"], n_samples=n_samples, use_cache=True,
+                               op_cache_dir=op_cache_dir, use_adj=True)
 
     #TODO set train and validation ratio
     train_size = int(0.8 * len(source_dataset))
@@ -36,11 +49,22 @@ def main(source_domain_path, target_domain_path, cfg, n_samples=None):
     source_train_loader = torch.utils.data.DataLoader(source_train, batch_size=None, shuffle=True, num_workers=0)
 
     source_valid_loader = torch.utils.data.DataLoader(val, batch_size=None, shuffle=False, num_workers=0)
-    
     ########################
     ## Target dataloader  ##
     ########################
-    
+    '''
+    Ideal structure
+    if target_dataset == 'tosca':
+        target_dataset = ...
+        
+        
+    elif target_dataset == 'shrec16':
+        target_dataset = ...
+        
+        
+    else:
+        raise NotImplementedError("dataset not implemented!")
+    '''
     target_dataset = Tosca(target_domain_path, name=cfg["dataset"]["subset"], k_eig=cfg["fmap"]["k_eig"],
                                         n_fmap=cfg["fmap"]["n_fmap"], n_samples=n_samples, use_cache=True,
                            op_cache_dir=op_cache_dir, use_adj=True)
@@ -72,9 +96,9 @@ def main(source_domain_path, target_domain_path, cfg, n_samples=None):
     ########################
     
     model = DPFMNet_DA(cfg).to(device)
-    model.load_state_dict(torch.load('trained_models/try1' + '_' + str(save_name) + '.pt'))
+    model.load_state_dict(torch.load('dann/data/source_training.pth'))
     
-    train.dann(cfg, model, source_train_loader, source_valid_loader, target_train_loader, target_valid_loader, save_name)
+    train.dann_training(cfg, model, source_train_loader, source_valid_loader, target_train_loader, target_valid_loader, save_name)
     
     
 

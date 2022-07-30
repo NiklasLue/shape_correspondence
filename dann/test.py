@@ -79,8 +79,8 @@ def test_target(cfg, target_test_loader, model_path, save_name, predictions_name
         p2p_pred, _, _, _, _, log_obj = FM_batch_eval(data, dpfm_da_net, shape1, shape2)
         
        
-        pred_p2p_list.append({'p2p': p2p_pred, 'mesh1': shape1["mesh"], 'mesh2': shape2["mesh"]})#, 'overlap_12': overlap_score12, 'overlap_21': overlap_score21, 'feat1': use_feat1, 'feat2': use_feat2})
-
+        pred_p2p_list.append({'p2p': p2p_pred, 'mesh1': shape1["mesh"], 'mesh2': shape2["mesh"]})
+        
         to_save_list.append(log_obj)
 
         mesh1_geod = shape1["mesh"].get_geodesic()
@@ -93,7 +93,7 @@ def test_target(cfg, target_test_loader, model_path, save_name, predictions_name
         acc_list.append(mean_dist)
         
     print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
-    torch.save(to_save_list, "target_"+predictions_name)
+    torch.save(to_save_list, "dann/data/dann/target_"+predictions_name)
 
     return pred_p2p_list, distances
 
@@ -143,7 +143,7 @@ def test_source(cfg, source_test_loader, model_path, save_name, predictions_name
         acc_list.append(mean_dist)
         
     print(f"Mean normalized geodesic error: {sum(acc_list)/len(acc_list)}")
-    torch.save(to_save_list, "source_"+predictions_name)
+    torch.save(to_save_list, "dann/data/dann/source_"+predictions_name)
 
     return pred_p2p_list, distances    
     

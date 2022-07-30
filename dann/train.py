@@ -11,10 +11,12 @@ from torch.utils.tensorboard import SummaryWriter
 from dann.utils import save_model, set_model_mode, ExtLoss, FrobeniusLoss, DPFMLoss_da
 
 from dann.model import FeatExtractorNet, MapExtractorNet, Discriminator, DPFMNet_DA
-#from utils import visualize
 from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
 from dpfm.utils import augment_batch
 
+###################################################
+# Based on https://github.com/wogong/pytorch-dann #
+###################################################
 
 
 def source_only(cfg, source_train_loader, source_valid_loader, target_train_loader, target_valid_loader, save_name):
@@ -27,15 +29,12 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
     else:
         device = torch.device("cpu")
 
-    # important paths
     base_path = os.path.dirname(__file__)
     op_cache_dir = cfg["dataset"]["cache_dir"]
-    #dataset_path = cfg["dataset"]["root_train"]
 
-    save_dir_name = f'dann'
-    model_save_path = os.path.join(base_path, f"data/{save_dir_name}/ep" + "_{}.pth")
-    if not os.path.exists(os.path.join(base_path, f"data/{save_dir_name}/")):
-        os.makedirs(os.path.join(base_path, f"data/{save_dir_name}/"))
+    
+    save_file_name = f'source_training'
+    model_save_path = os.path.join(base_path, f"data/{save_file_name}.pth")
     
     
     ################################
@@ -53,7 +52,6 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
 
     writer = SummaryWriter()
     for epoch in tqdm.tqdm(range(1, cfg["training"]["epochs"] + 1)):
-        #print('Epoch : {}'.format(epoch))
         dpfm_da_net.train()
 
         start_steps = epoch * len(source_train_loader)
@@ -76,11 +74,11 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
             # data augmentation
             source_data = augment_batch(source_data, rot_x=30, rot_y=30, rot_z=60, 
                                         std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
-            #target_data = augment_batch(target_data, rot_x=30, rot_y=30, rot_z=60, 
-            #                            std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
-            size_src = [1,2]#len(source_data)
 
+            # This should be wrong
+            size_src = [1,2]#len(source_data)
             label_src = torch.zeros(size_src).long().to(device)  
+
 
             # prepare iteration data
             C_gt = source_data["C_gt"].unsqueeze(0)
@@ -88,17 +86,20 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
             gt_partiality_mask12, gt_partiality_mask21 = source_data["gt_partiality_mask12"], source_data["gt_partiality_mask21"]
                        
 
-            ###############
+            #####################
             C_pred, src_domain_output, overlap_score12, overlap_score21, use_feat1, use_feat2  = dpfm_da_net(source_data, alpha=alpha)
             out, fmap, acc, nce, discriminator = criterion(C_gt, C_pred, map21, use_feat1, use_feat2, 
                                                               overlap_score12, overlap_score21, gt_partiality_mask12,
                                                               gt_partiality_mask21, src_domain_output, label_src)
             
+            #####################
             out.backward()
             torch.nn.utils.clip_grad_norm_(dpfm_da_net.parameters(), 1)
             optimizer.step()
             optimizer.zero_grad()
             
+            
+            #####################
             train_loss.append(out.item())
             fmap_loss.append(fmap.item())
             overlap_loss.append(acc.item())
@@ -106,7 +107,6 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
             discriminator_loss.append(discriminator.item())
             iterations += 1
 
-            # train_loss += train_loss.item()
         
         avg_train_loss = sum(train_loss) / len(train_loss)
         avg_fmap_loss = sum(fmap_loss) / len(fmap_loss)
@@ -128,11 +128,6 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
                 p = float(i + start_steps) / total_steps
                 alpha = 2. / (1. + np.exp(-10 * p)) - 1
             
-                # data augmentation
-                #source_data = augment_batch(source_data, rot_x=30, rot_y=30, rot_z=60, 
-                #                        std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
-                #target_data = augment_batch(target_data, rot_x=30, rot_y=30, rot_z=60, 
-                #                            std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
                 size_src = [1,2]#len(source_data)
 
                 label_src = torch.zeros(size_src).long().to(device)  
@@ -146,19 +141,21 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
                 gt_partiality_mask12, gt_partiality_mask21 = source_data["gt_partiality_mask12"], source_data["gt_partiality_mask21"]
 
 
-                ###############
+                #####################
                 C_pred, src_domain_output, overlap_score12, overlap_score21, use_feat1, use_feat2  = dpfm_da_net(source_data,
                                                                                                                  alpha=alpha)
                 out, fmap, acc, nce, discriminator = criterion(C_gt, C_pred, map21, use_feat1, use_feat2, 
                                                                   overlap_score12, overlap_score21, gt_partiality_mask12,
                                                                   gt_partiality_mask21, src_domain_output, label_src)
+                
+                
+                #####################
                 val_loss.append(out.item())
                 val_fmap_loss.append(fmap.item())
                 val_overlap_loss.append(acc.item())
                 val_nce_loss.append(nce.item())
                 val_discriminator_loss.append(discriminator.item())
 
-                # val_loss += val_loss.item() 
 
         avg_val_loss = sum(val_loss) / len(val_loss)
         avg_val_fmap_loss = sum(val_fmap_loss) / len(val_fmap_loss)
@@ -189,11 +186,9 @@ def source_only(cfg, source_train_loader, source_valid_loader, target_train_load
     writer.flush()
     torch.cuda.empty_cache()
 
-    save_model(dpfm_da_net, save_name)
-    #visualize(encoder, 'source', save_name)
+    torch.save(dpfm_da_net.state_dict(), model_save_path)    
 
-
-def dann(cfg, model, source_train_loader, source_valid_loader, target_train_loader, target_valid_loader, save_name):
+def dann_training(cfg, model, source_train_loader, source_valid_loader, target_train_loader, target_valid_loader, save_name):
     print("DANN training")
     
     if torch.cuda.is_available() and cfg["misc"]["cuda"]:
@@ -202,9 +197,13 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
         device = torch.device("cpu")
 
     iterations = 0
+    base_path = os.path.dirname(__file__)
+    op_cache_dir = cfg["dataset"]["cache_dir"]
+    
+    
+    save_file_name = f'dann_training'
+    model_save_path = os.path.join(base_path, f"data/{save_file_name}.pth")
 
-    #map_ext_criterion = DPFMLoss().to(device)
-    #discriminator_criterion = nn.CrossEntropyLoss().to(device)
     lr = float(cfg["optimizer"]["lr"])
     
     criterion = DPFMLoss_da().to(device)
@@ -217,7 +216,7 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
 
     
     for epoch in tqdm.tqdm(range(1, cfg["training"]["epochs"] + 1)):
-        print('Epoch : {}'.format(epoch))
+
         model.train()
         start_steps = epoch * len(source_train_loader)
         total_steps = cfg["training"]["epochs"] * len(target_train_loader)
@@ -240,32 +239,25 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
             ##    This is wrong   ##
             
             size_src = [1,2]#len(source_data)
-            size_tgt = [1,2]#len(target_data)
-            
-            #########################
-            
+            size_tgt = [1,2]#len(target_data)            
             
             label_src = torch.zeros(size_src).long().to(device)  
             label_tgt = torch.ones(size_tgt).long().to(device)  
-            
+            #########################
+
             # data augmentation
             source_data = augment_batch(source_data, rot_x=30, rot_y=30, rot_z=60, 
                                         std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
             target_data = augment_batch(target_data, rot_x=30, rot_y=30, rot_z=60, 
                                         std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
-            
-
             #####################################
-
-
-            optimizer.zero_grad()
 
             # prepare iteration data src
             C_gt = source_data["C_gt"].unsqueeze(0)
             map21 = source_data["map21"]
             gt_partiality_mask12, gt_partiality_mask21 = source_data["gt_partiality_mask12"], source_data["gt_partiality_mask21"]
             
-            # train on source domain
+            # source domain
             C_pred, src_domain_output, overlap_score12, overlap_score21, use_feat1, use_feat2  = model(source_data, alpha=alpha)
             out, fmap, acc, nce, src_discriminator = criterion(C_gt, C_pred, map21, use_feat1, use_feat2, 
                                                               overlap_score12, overlap_score21, gt_partiality_mask12,
@@ -275,23 +267,25 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
             # prepare iteration data tgt
             C_gt = target_data["C_gt"].unsqueeze(0)
             map21 = target_data["map21"]
-            gt_partiality_mask12, gt_partiality_mask21 = target_data["gt_partiality_mask12"], target_data["gt_partiality_mask21"]
+            tgt_gt_partiality_mask12, tgt_gt_partiality_mask21 = target_data["gt_partiality_mask12"], target_data["gt_partiality_mask21"]
             
-            # train on target domain
-            C_pred, tgt_domain_output, overlap_score12, overlap_score21, use_feat1, use_feat2  = model(target_data, alpha=alpha)
-            _, _, _, _, tgt_discriminator = criterion(C_gt, C_pred, map21, use_feat1, use_feat2, 
-                                                              overlap_score12, overlap_score21, gt_partiality_mask12,
-                                                              gt_partiality_mask21, tgt_domain_output, label_tgt)
+            # target domain
+            C_pred, tgt_domain_output, tgt_overlap_score12, tgt_overlap_score21, use_feat1, use_feat2  = model(target_data, alpha=alpha)
+            _, _, _, _, tgt_discriminator = criterion(C_pred, C_gt, map21, use_feat1, use_feat2, 
+                                                              tgt_overlap_score12, tgt_overlap_score21, tgt_gt_partiality_mask12,
+                                                              tgt_gt_partiality_mask21, tgt_domain_output, label_tgt)
 
-            del overlap_score12, overlap_score21, use_feat1, use_feat2, C_pred
             loss = out + src_discriminator + tgt_discriminator
             iterations += 1
             
             # optimize dann
             loss.backward()
-            optimizer.step()
-            train_loss.append(out.item())
+            optimizer.step()            
+            optimizer.zero_grad()
             
+            
+            #####################################
+            train_loss.append(out.item())            
             src_discriminator_loss.append(src_discriminator.item())
             tgt_discriminator_loss.append(tgt_discriminator.item())
             
@@ -324,11 +318,7 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
                 p = float(i + start_steps) / total_steps
                 alpha = 2. / (1. + np.exp(-10 * p)) - 1
             
-                # data augmentation
-                #source_data = augment_batch(source_data, rot_x=30, rot_y=30, rot_z=60, 
-                #                        std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
-                #target_data = augment_batch(target_data, rot_x=30, rot_y=30, rot_z=60, 
-                #                            std=0.01, noise_clip=0.05, scale_min=0.9, scale_max=1.1)
+
                 size_src = [1,2]#len(source_data)
 
                 label_src = torch.zeros(size_src).long().to(device)  
@@ -349,12 +339,18 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
                                                                   overlap_score12, overlap_score21, gt_partiality_mask12,
                                                                   gt_partiality_mask21, src_domain_output, label_src)
                 
+                # prepare iteration data tgt
+                C_gt = target_data["C_gt"].unsqueeze(0)
+                map21 = target_data["map21"]
+                tgt_gt_partiality_mask12, tgt_gt_partiality_mask21 = target_data["gt_partiality_mask12"], target_data["gt_partiality_mask21"]
+                
+                
                 ############### Target Validation
-                C_pred_tgt, tgt_domain_output, overlap_score12, overlap_score21, use_feat1, use_feat2  = model(source_data,
+                C_pred_tgt, tgt_domain_output, tgt_overlap_score12, tgt_overlap_score21, use_feat1, use_feat2  = model(target_data,
                                                                                                                  alpha=alpha)
                 out_tgt, fmap, acc, nce, tgt_discriminator = criterion(C_gt, C_pred_src, map21, use_feat1, use_feat2, 
-                                                                  overlap_score12, overlap_score21, gt_partiality_mask12,
-                                                                  gt_partiality_mask21, tgt_domain_output, label_src)
+                                                                  tgt_overlap_score12, tgt_overlap_score21, tgt_gt_partiality_mask12,
+                                                                  tgt_gt_partiality_mask21, tgt_domain_output, label_tgt)
                 val_loss_src.append(out_src.item())
                 val_loss_tgt.append(out_tgt.item())
 
@@ -386,6 +382,6 @@ def dann(cfg, model, source_train_loader, source_valid_loader, target_train_load
           
 
 
-    save_model(model, save_name)
+    torch.save(model.state_dict(), model_save_path)    
     #visualize(encoder, 'source', save_name)
 

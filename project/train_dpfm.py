@@ -76,7 +76,7 @@ def train_net(cfg, n_samples=None):
     iterations = 0
     lrs = []
     lambda1 = lambda epoch: 0.65 ** epoch
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=7, verbose=True)
     # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1, verbose=True)
     writer = SummaryWriter()
 

@@ -136,7 +136,6 @@ def eval_net(cfg, model_path, predictions_name, return_pred_p2p=False, return_di
         return pred_p2p_list
     elif return_dist:
         return distances
- 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Launch the training of DPFM model.")
