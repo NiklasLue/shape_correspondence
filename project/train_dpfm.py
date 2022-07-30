@@ -227,8 +227,8 @@ def train_net_unsup(cfg, n_samples=None):
     dpfm_net = DPFMNet_unsup(cfg).to(device)
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
-    criterion = DPFMLoss_unsup(w_orth_C1=cfg["loss"]["w_orth_C1"], w_orth_C2=cfg["loss"]["w_orth_C2"],
-    w_bij=cfg["loss"]["w_bij"], w_diff=cfg["loss"]["w_diff"]).to(device) 
+    criterion = DPFMLoss_unsup(w_orth_C1=cfg["loss_unsup"]["w_orth_C1"], w_orth_C2=cfg["loss_unsup"]["w_orth_C2"],
+    w_bij=cfg["loss_unsup"]["w_bij"], w_diff=cfg["loss_unsup"]["w_diff"]).to(device) 
 
     # Training loop
     print("start training")

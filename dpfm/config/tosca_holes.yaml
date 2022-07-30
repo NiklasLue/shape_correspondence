@@ -2,9 +2,9 @@
 dataset:
   name: tosca
   subset: holes
-  root_train: ../../data/SGP_dataset_off/train
-  root_test: ../../data/SGP_dataset_off/test
-  cache_dir: ../../data/op_cache
+  root_train: "../../data/SGP_dataset_off/train"
+  root_test: "../../data/SGP_dataset_off/test"
+  cache_dir: "../../data/op_cache"
 
 
 
@@ -49,6 +49,13 @@ loss:
   w_nce: 1
   nce_t: 0.07
   nce_num_pairs: 512
+  
+# loss params unsupervised model
+loss_unsup:
+  w_bij: 1
+  w_orth_C1: 1
+  w_orth_C2: 1
+  w_diff: 0  
 
 # misc
 misc:
