@@ -94,7 +94,7 @@ def train_net(cfg):
 
             # prepare iteration data
             C_gt = data["C_gt"].unsqueeze(0)
-            C_gt2 = data["C_gt2"].unsqueeze(0)
+            C_gt2 = data["C2_gt"].unsqueeze(0)
 
             map21 = data["map21"]
             gt_partiality_mask12, gt_partiality_mask21 = data["gt_partiality_mask12"], data["gt_partiality_mask21"]
@@ -149,7 +149,7 @@ def train_net(cfg):
                 
             # prepare iteration data
             C_gt = data["C_gt"].unsqueeze(0)
-            C_gt2 = data["C_gt2"].unsqueeze(0)
+            C_gt2 = data["C2_gt"].unsqueeze(0)
             map21 = data["map21"]
             gt_partiality_mask12, gt_partiality_mask21 = data["gt_partiality_mask12"], data["gt_partiality_mask21"]
 
