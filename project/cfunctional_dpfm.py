@@ -300,11 +300,8 @@ class CoupledFunctionalMappingDPFM:
         ev1 = self.shape1["evals"]
         ev2 = self.shape2["evals"]
 
-        if optinit == 'nocoup': # Linear-system initialization (solution of C1 and C2 if coupling is removed)
-#             e1, e2 = ev1[:self.k1].detach().cpu().numpy(),  ev2[:self.k2].detach().cpu().numpy()
-#             maxev =  max(np.max(e1), np.max(e2))
-#             e1 /= maxev
-#             e2 /= maxev 
+        if optinit == 'nocoup': 
+            # Linear-system initialization (solution of C1 and C2 if coupling is removed)
             A_A_t = descr1_red @ descr1_red.T
             B_A_t = descr2_red @ descr1_red.T
             B_B_t = descr2_red @ descr2_red.T
@@ -312,12 +309,14 @@ class CoupledFunctionalMappingDPFM:
             mask_t = mask.T
             C1, C2 = np.zeros((self.k2, self.k1)), np.zeros((self.k1, self.k2))
             for i in range(self.k2):
-                C1[i] = np.linalg.solve(A_A_t + mu_mask * np.diag(mask[i]), B_A_t[i]) # np.square(e1 - e2[i])
+                C1[i] = np.linalg.solve(A_A_t + mu_mask * np.diag(mask[i]), B_A_t[i])
             for i in range(self.k1):
                 C2[i] = np.linalg.solve(B_B_t + mu_mask * np.diag(mask_t[i]), A_B_t[i]) 
             C1, C2 = torch.tensor(C1), torch.tensor(C2)
+
         elif optinit == 'identity': # Close-to-identity initialization
             C1, C2 = torch.eye(self.k2, self.k1), torch.eye(self.k1, self.k2)
+
         else: # Zero initialization
             C1, C2 = torch.zeros((self.k2, self.k1)), torch.zeros((self.k1, self.k2))
 
@@ -332,7 +331,7 @@ class CoupledFunctionalMappingDPFM:
         ---------------------------
         operators : n_descr long list of ((k1,k1),(k2,k2)) operators.
         """
-        # spectral or euclidean space?
+
         e1 = self.shape1["evecs"]
         e2 = self.shape2["evecs"]
 

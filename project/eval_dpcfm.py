@@ -8,12 +8,12 @@ import torch
 import tqdm
 
 from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
-from project.dpcfm_model import DPCFMNet
+from dpcfm.dpcfm_model import DPCFMNet, DPCFMNetV2
 from pyFM.spectral import FM_to_p2p
 from pyFM.eval.evaluate import accuracy
 
 
-def eval_net(cfg, model_path, predictions_name):
+def eval_net(cfg, model_path, predictions_name, v=1):
     """
     Rewritten eval_net() function from DPFM
     """
@@ -42,7 +42,13 @@ def eval_net(cfg, model_path, predictions_name):
         raise NotImplementedError("dataset not implemented!")
 
     # define model
-    dpcfm_net = DPCFMNet(cfg).to(device)
+    if v==1:
+        dpcfm_net = DPCFMNet(cfg).to(device)
+    elif v==2:
+        dpcfm_net = DPCFMNetV2(cfg).to(device)
+    else:
+        raise ValueError(f"Selected version {v} is not available!")
+
     dpcfm_net.load_state_dict(torch.load(model_path, map_location=device))
     dpcfm_net.eval()
 

@@ -36,20 +36,10 @@ class CoupledFunctionalMapping:
         # DESCRIPTORS
         self.descr1 = None
         self.descr2 = None
-
-        # FUNCTIONAL MAP
-        #self._C_type = 'classic'
-        #self._C_base = None
-        #self._C_icp = None
-        #self._C_zo = None
         
         # COUPLED FUNCTIONAL MAP
         self._C1 = None
         self._C2 = None
-
-        # AREA AND CONFORMAL SHAPE DIFFERENCE OPERATORS
-        #self.SD_a = None
-        #self.SD_c = None
 
         self._k1, self._k2,  = None, None
 
@@ -482,74 +472,3 @@ class CoupledFunctionalMapping:
         else:
             raise ValueError(f'Only indices 1 or 2 are accepted, not {mesh_ind}')
                   
-    
-"""    
-
-    def decode(self, encoded_func, mesh_ind=2):
-        
-        Decode a function from the LB basis
-
-        Parameters
-        -----------------------
-        encoded_func : array - (k1|k2,p) encoding of the functions
-        mesh_ind     : int  1 | 2 index of the mesh on which to decode
-
-        Output
-        -----------------------
-        func : (n1|n2,p) array of decoded f
-        
-
-        if mesh_ind == 1:
-            return self.mesh1.decode(encoded_func)
-        elif mesh_ind == 2:
-            return self.mesh2.decode(encoded_func)
-        else:
-            raise ValueError(f'Only indices 1 or 2 are accepted, not {mesh_ind}')
-
-    def transport(self, encoded_func, reverse=False):
-        
-        transport a function from LB basis 1 to LB basis 2. 
-        If reverse is True, then the functions are transposed the other way
-        using the transpose of the functional map matrix
-
-        Parameters
-        -----------------------
-        encoded_func : array - (k1|k2,p) encoding of the functions
-        reverse      : bool If true, transpose from 2 to 1 using the transpose of the FM
-
-        Output
-        -----------------------
-        transp_func : (n2|n1,p) array of new encoding of the functions
-        
-        if not self.preprocessed:
-            raise ValueError("The Functional map must be fit before transporting a function")
-
-        if not reverse:
-            return self.FM @ encoded_func
-        else:
-            return self.FM.T @ encoded_func
-
-    def transfer(self, func, reverse=False):
-        
-        Transfer a function from mesh1 to mesh2.
-        If 'reverse' is set to true, then the transfer goes
-        the other way using the transpose of the functional
-        map as approximate inverser transfer.
-
-        Parameters
-        ----------------------
-        func : (n1|n2,p) evaluation of the functons
-
-        Output
-        -----------------------
-        transp_func : (n2|n1,p) transfered function
-
-        
-        if not reverse:
-            return self.decode(self.transport(self.project(func)))
-
-        else:
-            encoding = self.project(func, mesh_ind=2)
-            return self.decode(self.transport(encoding, reverse=True),
-                               mesh_ind=1)
-"""

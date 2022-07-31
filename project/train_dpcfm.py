@@ -8,15 +8,15 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 
-from project.dpcfm_model import DPCFMNet
-from  project.dpcfm_utils import DPCFMLossV2
+from dpcfm.dpcfm_model import DPCFMNet, DPCFMNetV2
+from  dpcfm.dpcfm_utils import DPCFMLoss, DPCFMLossV2
 
 from dpfm.utils import augment_batch
 
 from project.datasets import ShrecPartialDataset, Tosca, shape_to_device
 
 
-def train_net(cfg):
+def train_net(cfg, v=1):
     """
     Rewritten train_net() function from DPCFM to take more data classes
     """
@@ -60,12 +60,22 @@ def train_net(cfg):
         raise NotImplementedError("dataset not implemented!")
 
     # define model
-    #dpcfm_net = DPCFMNet(cfg).to(device)
-    dpcfm_net = DPCFMNet(cfg).to(device)
+    if v==1:
+        dpcfm_net = DPCFMNet(cfg).to(device)
+    elif v==2:
+        dpcfm_net = DPCFMNetV2(cfg).to(device)
+    else:
+        raise ValueError(f"Selected version {v}: not available!")
+
     lr = float(cfg["optimizer"]["lr"])
     optimizer = torch.optim.Adam(dpcfm_net.parameters(), lr=lr, betas=(cfg["optimizer"]["b1"], cfg["optimizer"]["b2"]))
     torch.nn.utils.clip_grad_norm_(dpcfm_net.parameters(), 1)
-    criterion = DPCFMLossV2(w_fmap=cfg["loss"]["w_fmap"], w_acc=cfg["loss"]["w_acc"], w_nce=cfg["loss"]["w_nce"],
+
+    if v==1:
+        criterion = DPCFMLoss(w_fmap=cfg["loss"]["w_fmap"], w_acc=cfg["loss"]["w_acc"], w_nce=cfg["loss"]["w_nce"],
+                         nce_t=cfg["loss"]["nce_t"], nce_num_pairs=cfg["loss"]["nce_num_pairs"]).to(device)
+    elif v==2:
+        criterion = DPCFMLossV2(w_fmap=cfg["loss"]["w_fmap"], w_acc=cfg["loss"]["w_acc"], w_nce=cfg["loss"]["w_nce"],
                          nce_t=cfg["loss"]["nce_t"], nce_num_pairs=cfg["loss"]["nce_num_pairs"]).to(device)
 
     # Training loop

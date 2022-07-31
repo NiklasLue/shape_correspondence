@@ -2,6 +2,7 @@ import numpy as np
 
 from pyFM.optimize.base_functions import descr_preservation, LB_commutation, descr_preservation_grad, LB_commutation_grad, op_commutation, op_commutation_grad, oplist_commutation, oplist_commutation_grad
 
+### Definition of helper functions
 
 def L21(X):
     return np.sqrt(np.square(X).sum(axis = 0)).sum() 
