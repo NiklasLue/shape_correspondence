@@ -99,7 +99,8 @@ def op_commutation_grad(C, op1, op2):
     ---------------------
     gardient : (K2,K1) gradient of the operator commutativity squared norm
     """
-    return op2.T @ (op2 @ C - C @ op1) - (op2 @ C - C @ op1) @ op1.T
+    temp = op2 @ C - C @ op1
+    return op2.T @ (temp) - (temp) @ op1.T
 
 
 def oplist_commutation(C, op_list):

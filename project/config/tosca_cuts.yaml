@@ -1,0 +1,72 @@
+# dataset params
+dataset:
+  name: tosca
+  subset: cuts
+  root_train: '{{ABS_PATH}}/data/SGP_dataset_off/train'
+  root_test: '{{ABS_PATH}}/data/SGP_dataset_off/test'
+  cache_dir: '{{ABS_PATH}}/data/op_cache'
+  model_name: test
+  
+# if the pre-trained overlap predictor and cross attention module should not be used, comment out 'pretrained_state_dict'
+pretrained_state_dict: 'project/data/shrec_pretrained_model/shrec_cuts.pth'
+
+# optimizer params
+optimizer:
+  lr: 1e-3
+  b1: 0.9
+  b2: 0.99
+  decay_iter: 100
+  decay_factor: 0.5
+
+training:
+  batch_size: 10
+  epochs: 300
+
+# fmap module params
+fmap:
+  n_fmap: 75  # number of eigenvectors used for fmap
+  k_eig: 128  # number of eigenvectors used for diffusion
+  n_feat: 128
+  C_in: 3
+  lambda_: 100
+  resolvant_gamma: 0.5
+  robust: False
+
+# attention module params
+attention:
+  num_head: 4
+  gnn_dim: 128
+  ref_n_layers: 1
+  cross_sampling_ratio: 0.4
+  attention_type: normal
+
+# overlap module
+overlap:
+  overlap_feat_dim: 32
+
+# loss params
+loss:
+  w_fmap: 1
+  w_acc: 1
+  w_nce: 10
+  w_coup: 0.1
+  nce_t: 0.07
+  nce_num_pairs: 4096
+
+# misc
+misc:
+  cuda: True
+  device: 0
+  checkpoint_interval: 5
+  log_interval: 50
+
+# cfm evaluation params
+cfm_eval:
+  mu_pres: 1.1
+  mu_coup: 2
+  mu_mask: 50
+  mu_des: 0
+  mu_orient: 0
+  orient_reversing: False
+  optinit: zeros
+  optmask: resolvent

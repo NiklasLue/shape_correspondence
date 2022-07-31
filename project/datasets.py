@@ -292,7 +292,6 @@ class ShrecPartialDataset(Dataset):
 
         # Load the meshes & labels
         # define files and order
-       
         self.used_shapes = sorted([x.stem for x in (Path(root_dir) / "shapes").iterdir() if name in x.stem and ".DS_Store" not in x.stem])
         corres_path = Path(root_dir) / "maps"
         all_combs = [x.stem for x in corres_path.iterdir() if name in x.stem]
@@ -301,7 +300,6 @@ class ShrecPartialDataset(Dataset):
             if x in self.used_shapes and y in self.used_shapes:
                 map_ = torch.from_numpy(np.loadtxt(corres_path / f"{x}_{y}.map", dtype=np.int32)).long()
                 self.corres_dict[(self.used_shapes.index(y), self.used_shapes.index(x))] = map_
-
 
         # set combinations
         self.combinations = list(self.corres_dict.keys())
@@ -321,6 +319,7 @@ class ShrecPartialDataset(Dataset):
                 print("loading mesh " + str(shape_name))
 
             verts, faces = pp3d.read_mesh(str(mesh_dirpath / f"{shape_name}.off"))
+
             # to torch
             verts = torch.tensor(np.ascontiguousarray(verts)).float()
             faces = torch.tensor(np.ascontiguousarray(faces))
@@ -448,7 +447,8 @@ class ShrecPartialDataset(Dataset):
         # Compute fmap
         map21 = self.corres_dict[(idx1, idx2)]
 
-        evec_1, evec_2, mass2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap], shape2["mass"]
+        evec_1, evec_2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap]
+        mass1, mass2 = shape1["mass"], shape2["mass"]
         trans_evec2 = evec_2.t() @ torch.diag(mass2)
 
         # If the size of the map vector is too long, shorten it
@@ -460,14 +460,17 @@ class ShrecPartialDataset(Dataset):
         P = torch.zeros(evec_2.size(0), evec_1.size(0))
         P[range(evec_2.size(0)), map21.flatten()] = 1
         C_gt = trans_evec2 @ P @ evec_1
-
+        
+        trans_evec1 = evec_1.t() @ torch.diag(mass1)
+        C2_gt = trans_evec1 @ P.t() @ evec_2
+        
         # compute region labels
         gt_partiality_mask12 = torch.zeros(shape1["xyz"].size(0)).long().detach()
         gt_partiality_mask12[map21[map21 != -1]] = 1
         gt_partiality_mask21 = torch.zeros(shape2["xyz"].size(0)).long().detach()
         gt_partiality_mask21[map21 != -1] = 1
 
-        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt,
+        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt, "C2_gt": C2_gt,
                 "map21": map21, "gt_partiality_mask12": gt_partiality_mask12, "gt_partiality_mask21": gt_partiality_mask21}
 
 class Tosca(Dataset):
@@ -603,7 +606,7 @@ class Tosca(Dataset):
                 gt_map12 = map_hr_re[map_x_hr]
                 # get map from null to partial if use_adj == False, i.e. p2p map describes mesh2 -> mesh1
                 if not self.use_adj:
-
+                    # create list of -1's with length = number of vertices on null shape
                     gt_map21 = list([-1] * len(self.verts_list[(len(self.used_shapes) + self.null_shapes.index(y))]))
                     for j, i in enumerate(gt_map12):
                         gt_map21[i] = j
@@ -688,12 +691,17 @@ class Tosca(Dataset):
         # Compute fmap
         map21 = self.corres_dict[(idx1, idx2)]
 
-        evec_1, evec_2, mass2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap], shape2["mass"]
+        evec_1, evec_2 = shape1["evecs"][:, :self.n_fmap], shape2["evecs"][:, :self.n_fmap]
+        mass1, mass2 = shape1["mass"], shape2["mass"]
         trans_evec2 = evec_2.t() @ torch.diag(mass2)
 
         P = torch.zeros(evec_2.size(0), evec_1.size(0))
         P[range(evec_2.size(0)), map21.flatten()] = 1
+
         C_gt = trans_evec2 @ P @ evec_1
+        
+        trans_evec1 = evec_1.t() @ torch.diag(mass1)
+        C2_gt = trans_evec1 @ P.t() @ evec_2
 
         # compute region labels
         map12 = torch.Tensor([-1] * shape1["xyz"].size(0))
@@ -703,10 +711,10 @@ class Tosca(Dataset):
         gt_partiality_mask21 = torch.zeros(shape2["xyz"].size(0)).long().detach()
         gt_partiality_mask21[map21 != -1] = 1
 
-        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt,
+        return {"shape1": shape1, "shape2": shape2, "C_gt": C_gt, "C2_gt": C2_gt,
                 "map21": map21, "gt_partiality_mask12": gt_partiality_mask12, "gt_partiality_mask21": gt_partiality_mask21}
 
-    
+
 def shape_to_device(dict_shape, device):
     names_to_device = ["xyz", "faces", "mass", "evals", "evecs", "gradX", "gradY"]
     for k, v in dict_shape.items():
