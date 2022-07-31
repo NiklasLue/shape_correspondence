@@ -62,7 +62,7 @@ Our proposed DPCFM structure is implemented based on the DPFM code. Wee provide 
 
 ## Training
 
-All of the models mentioned above can be trained using the *run_training.py* script. To choose the model use the flag *-v* and choose one of the following 
+All of the models mentioned above can be trained using the [run_training](run_training.py) script. To choose the model use the flag *-v* and choose one of the following 
 - dpfm
 - unsupervised
 - dpcfm1
@@ -83,18 +83,49 @@ They are saved every 5 epochs, you can change that behaviour in the config file.
 
 ## Evaluation
 
-Trained models can be evaluated with the *run_eval.py* script. You have to choose the correct model again and use the other flags to give your respective paths again. Use *-h* to see all available options.
+Trained models can be evaluated with the [run_eval](run_eval.py) script. You have to choose the correct model again and use the other flags to give your respective paths again. Use *-h* to see all available options.
 
 **Example:**
 ```
 python3 run_eval.py  -d ../.. -c project/config/tosca_cuts.yaml -mp project/models/dpcfm.pth -m CFM
 ```
 
+This script creates evaluation files, where the results of the evaluation is stored in. 
+These can later be used via *torch.load(file_path)* to load such that the evaluation script does not have to be run again.
+The files are stored in the folder
+
+    data/eval
+
 We provide pretrained models that can be used for evaluation and recreating the experiments seen in the report. The state dicts can be found in the folder
 
     project/models
 
 > **Note:** For evaluating DPCFM models with coupled functional maps, use the dpfm model, i.e. *-v dpfm*
+
+## Notebooks
+
+We created several notebooks to showcase the models and to create figures seen in the report.
+
+
+- [eval_notebook](eval_notebook.ipynb):\
+All pretrained models are loaded and evaluated. 
+In the end the accumulated geodesic error graph is created.
+
+- [cfm_example_notebook](cfm_example_notebook.ipynb):\
+Overview of CFM calculation with pyFM methods and evaluation of the calculated maps.
+
+- [dpfm_example_notebook](dpfm_example_notebook.ipynb):\
+Training and evaluation with FM and CFM of DPFM models.
+
+- [unsup_example_notebook](unsup_example_notebook.ipynb):\
+Visualizations of unsupervised models.
+
+- [dpcfm_example_notebook](dpcfm_example_notebook.ipynb):\
+Training and evaluation of a dpcfm model.
+
+- [pyfm_example_notebook](pyfm_example_notebook.ipynb):\
+The example script from the pyFM package, showcasing some functionalities of the package.
+
 
 ## Acknowledgements
 
