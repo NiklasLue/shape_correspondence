@@ -1,11 +1,11 @@
 # dataset params
 dataset:
-  name: tosca
+  name: shrec16
   subset: cuts
-  root_train: '{{ABS_PATH}}/data/shrec_partial_train'
-  root_test: '{{ABS_PATH}}/data/shrec_partial_train'
+  root_train: '../data/shrec_partial_train'
+  root_test: '../data/shrec_partial_train'
   # root_test: 'data/SGP_dataset_off/test'
-  cache_dir: '{{ABS_PATH}}/data/op_cache'
+  cache_dir: '../data/shrec/op_cache'
 
 
 
@@ -46,8 +46,8 @@ overlap:
 # loss params
 loss:
   w_fmap: 1
-  w_acc: 1
-  w_nce: 0.0
+  w_acc: 10
+  w_nce: 0.01
   nce_t: 0.07
   nce_num_pairs: 4096
 

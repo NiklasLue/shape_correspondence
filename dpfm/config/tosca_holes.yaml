@@ -1,41 +1,41 @@
 # dataset params
 dataset:
   name: tosca
-  subset: cuts
-  root_train: '../data/SGP_dataset_off/train_full'
-  root_test: '../data/SGP_dataset_off/test_full'
-  cache_dir: '../data/op_cache'
+  subset: holes
+  root_train: '../../data/SGP_dataset_off/train'
+  root_test: '../../data/SGP_dataset_off/test'
+  cache_dir: '../../data/op_cache'
 
 
 
 # optimizer params
 optimizer:
-  lr: 1e-4
+  lr: 1e-3
   b1: 0.9
   b2: 0.99
   decay_iter: 100
   decay_factor: 0.5
 
 training:
-  batch_size: 10
-  epochs: 100
+  batch_size: 4
+  epochs: 300
 
 # fmap module params
 fmap:
-  n_fmap: 75  # number of eigenvectors used for fmap
+  n_fmap: 30  # number of eigenvectors used for fmap
   k_eig: 128  # number of eigenvectors used for diffusion
   n_feat: 128
   C_in: 3
   lambda_: 100
   resolvant_gamma: 0.5
-  robust: False
+  robust: True
 
 # attention module params
 attention:
   num_head: 4
   gnn_dim: 128
   ref_n_layers: 1
-  cross_sampling_ratio: 0.4
+  cross_sampling_ratio: 0.3
   attention_type: normal
 
 # overlap module
@@ -48,7 +48,7 @@ loss:
   w_acc: 1
   w_nce: 1
   nce_t: 0.07
-  nce_num_pairs: 4096
+  nce_num_pairs: 512
 
 # misc
 misc:
@@ -56,14 +56,3 @@ misc:
   device: 0
   checkpoint_interval: 5
   log_interval: 50
-
-# cfm evaluation params
-cfm_eval:
-  mu_pres: 1.1
-  mu_coup: 2
-  mu_mask: 50
-  mu_des: 0
-  mu_orient: 0
-  orient_reversing: False
-  optinit: zeros
-  optmask: slanted

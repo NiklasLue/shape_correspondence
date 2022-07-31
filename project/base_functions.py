@@ -73,7 +73,7 @@ def oplist_commutation_t(C, op_list):
     return energy
 
 
-def loss(C, A, B, I, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient): 
+def loss(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient): 
     """
     Evaluation of the loss for coupled functional maps computation
     Parameters:
@@ -96,6 +96,8 @@ def loss(C, A, B, I, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, 
     C1, C2 = C[0:len(C)//2], C[len(C)//2 : len(C)]
     
     C1, C2 = np.reshape(C1, (k2,k1)), np.reshape(C2, (k1,k2))
+    
+    I = np.identity(k2)
     
     loss = 0
     
@@ -123,7 +125,7 @@ def loss(C, A, B, I, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, 
 
 
 # (set up gradient of loss function -> for optimizer)
-def loss_grad(C, A, B, I, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient):
+def loss_grad(C, A, B, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu_LB, mu_des, mu_orient):
     """
     Evaluation of the gradient of the loss for coupled functional maps computation
 
@@ -145,6 +147,8 @@ def loss_grad(C, A, B, I, list_descr, orient_op, ev_sqdiff, mu_pres, mu_coup, mu
     C1, C2 = C[0:len(C)//2], C[len(C)//2 : len(C)]
     
     C1, C2 = np.reshape(C1, (k2,k1)), np.reshape(C2, (k1,k2))
+    
+    I = np.identity(k2)
     
     grad_C1 = 0
     grad_C2 = 0

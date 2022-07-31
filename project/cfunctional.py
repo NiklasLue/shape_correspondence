@@ -300,12 +300,9 @@ class CoupledFunctionalMapping:
           
         # Compute mask for regularization
         mask = self.get_mask(optmask)
-        
-        # Get identity matrix for coupling loss
-        I = np.identity(self.k2)
 
         # Arguments for the optimization problem
-        args = (descr1_red, descr2_red, I, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient)
+        args = (descr1_red, descr2_red, list_descr, orient_op, mask, mu_pres, mu_coup, mu_mask, mu_des, mu_orient) # to add weight matrix W
         
         # Initialization of C1 and C2
         C1, C2 = self.get_x0(optinit, descr1_red, descr2_red, mu_mask)         

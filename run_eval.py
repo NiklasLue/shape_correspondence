@@ -15,4 +15,4 @@ if __name__ == '__main__':
     cfg["dataset"]["root_train"] = cfg["dataset"]["root_train"].replace("{{ABS_PATH}}", args.data_path)
     cfg["dataset"]["root_test"] = cfg["dataset"]["root_test"].replace("{{ABS_PATH}}", args.data_path)
     cfg["dataset"]["cache_dir"] = cfg["dataset"]["cache_dir"].replace("{{ABS_PATH}}", args.data_path)
-    eval_net(cfg, f"{args.path}/project/data/shrec_pretrained_model/shrec_cuts.pth", f"{args.path}/data/own_pt_cfm.pt", mode="CFM")
+    eval_net(cfg, f"{args.path}/project/data/shrec_pretrained_model/.pth", f"{args.path}/data/own_pt_cfm.pt", mode="CFM")
