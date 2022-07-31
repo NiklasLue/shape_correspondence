@@ -22,8 +22,8 @@ training:
 
 # fmap module params
 fmap:
-  n_fmap: 30  # number of eigenvectors used for fmap
-  k_eig: 64  # number of eigenvectors used for diffusion
+  n_fmap: 75  # number of eigenvectors used for fmap
+  k_eig: 128  # number of eigenvectors used for diffusion
   n_feat: 128
   C_in: 3
   lambda_: 100
@@ -33,7 +33,7 @@ fmap:
 # attention module params
 attention:
   num_head: 4
-  gnn_dim: 64
+  gnn_dim: 128
   ref_n_layers: 1
   cross_sampling_ratio: 0.3
   attention_type: normal

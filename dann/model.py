@@ -135,7 +135,7 @@ class DPFMNet_DA(nn.Module):
             C_in=cfg["fmap"]["C_in"],
             C_out=cfg["fmap"]["n_feat"],
             C_width=128,
-            N_block=2,
+            N_block=4,
             dropout=True,
             with_gradient_features=True,
             with_gradient_rotations=True,
